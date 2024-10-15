@@ -8,7 +8,17 @@ use crate::{
 
 use super::{board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition, coordinates::CoordinateError};
 
-struct Move {
+enum CastleType {
+    ShortCastle,
+    LongCastle
+}
+
+enum Move {
+    StandardMove(StandardMove),
+    Castle(CastleType),
+}
+
+struct StandardMove {
     start_position: CoordinatePosition,
     end_position: CoordinatePosition,
     piece: PieceEnum,
@@ -17,7 +27,7 @@ struct Move {
     takes: Option<(CoordinatePosition, PieceEnum)>,
 }
 
-impl Move {
+impl StandardMove {
     pub(crate) fn new(
         start_position: CoordinatePosition,
         end_position: CoordinatePosition,
@@ -182,4 +192,18 @@ impl BoardBitmasks {
         };
         todo!()
     }
+
+    fn get_white_pawn_moves_single_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
+
+    }
+
+    fn get_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    fn get_white_pawn_moves_capture_left(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    fn get_white_pawn_moves_capture_right(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    fn get_white_pawn_moves_en_passant(&self, en_passant_target: Option<CoordinatePosition>, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    fn get_piece_type_for_capture(&self, capture_position: CoordinatePosition) -> Result<PieceEnum, MoveError> {}
 }

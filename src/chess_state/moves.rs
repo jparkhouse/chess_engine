@@ -1,4 +1,4 @@
-use std::error;
+use std::{collections::btree_map::Values, error};
 
 use thiserror::Error;
 
@@ -68,6 +68,8 @@ enum MoveError {
     PawnOnOneOrEight,
     #[error("Coordinate error: {0}")]
     CoordinateError(#[from] CoordinateError),
+    #[error("Capture piece not found at {0}")]
+    CapturePieceNotFound(CoordinatePosition),
 }
 
 impl BoardBitmasks {
@@ -193,17 +195,219 @@ impl BoardBitmasks {
         todo!()
     }
 
-    fn get_white_pawn_moves_single_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
+    fn calculate_white_pawn_moves_single_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
+        let mut output: Vec<Move> = Vec::with_capacity(8);
+        // no valid pawns on row 1
+        // pawns on row 7 need to handle promotion moves
+        // pawns on row 8 should already be promoted
+        const ROWS_TWO_TO_SIX: u64 = 0x00_00_FF_FF_FF_FF_FF_00;
+        let valid_pawns = self.white_pawns.mask & ROWS_TWO_TO_SIX;
+        let mut valid_moves = (valid_pawns << 8) & !occupied;
 
+        while valid_moves != 0 {
+            let next_move = 1u64 << valid_moves.trailing_zeros(); // get next valid move
+            let starting_position = next_move >> 8; // find the starting position
+
+            output.push( // add to output
+                Move::StandardMove(
+                    create_simple_white_pawn_move(starting_position, next_move)?
+                )
+            );
+
+            valid_moves &= !next_move; // remove that move
+        }
+
+        Ok(output) // return output
     }
 
-    fn get_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+fn calculate_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
+    let mut output: Vec<Move> = Vec::with_capacity(8);
+    // only applies to pawns on row 2
+    const ROW_TWO: u64 = 0xFF_00;
+    let valid_pawns = self.white_pawns.mask & ROW_TWO;
 
-    fn get_white_pawn_moves_capture_left(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+    // need to ensure the pawns can step forwards once
+    let valid_first_step = (valid_pawns << 8) & !occupied;
 
-    fn get_white_pawn_moves_capture_right(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+    // and again
+    let mut valid_moves = (valid_first_step << 8) & !occupied;
 
-    fn get_white_pawn_moves_en_passant(&self, en_passant_target: Option<CoordinatePosition>, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+    while valid_moves != 0 {
+        let next_move = 1u64 << valid_moves.trailing_zeros(); // get next valid move
+        let starting_position = next_move >> 16; // find the starting position two rows back
 
-    fn get_piece_type_for_capture(&self, capture_position: CoordinatePosition) -> Result<PieceEnum, MoveError> {}
+        output.push( // add to output
+            Move::StandardMove(
+                create_double_white_pawn_move(starting_position, next_move)?
+            )
+        );
+
+        valid_moves &= !next_move; // remove that move
+    }
+
+    Ok(output)
+}
+
+    fn calculate_white_pawn_moves_capture_left(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    fn calculate_white_pawn_moves_capture_right(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    /// Calculates the en passant capture moves for white pawns.
+    /// 
+    /// En passant is a special capture move in chess that occurs when a pawn moves two squares forward
+    /// from its starting position, and an opponent's pawn can capture it as if it had only moved one square.
+    /// The en passant capture can only be made on the very next turn; otherwise, the opportunity is lost.
+    /// 
+    /// The en passant target is the square directly behind the opposing pawn that moved two squares.
+    /// This function checks whether a white pawn can capture the black pawn via en passant and returns the possible move(s).
+    /// 
+    /// # Example:
+    /// In the following example, a black pawn on D7 moves two squares forward to D5.
+    /// A white pawn on C6 is now able to perform an en passant capture. The target square is D7 (x):
+    ///
+    /// ```
+    ///      A   B   C   D   E   F   G   H
+    ///  8 |   |   |   |   |   |   |   |   |
+    ///  7 |   |   |   | x |   |   |   |   |
+    ///  6 |   |   | P | p |   |   |   |   |
+    ///  5 |   |   |   |   |   |   |   |   |
+    /// ```
+    ///
+    /// After en passant is performed:
+    ///
+    /// ```
+    ///      A   B   C   D   E   F   G   H
+    ///  8 |   |   |   |   |   |   |   |   |
+    ///  7 |   |   |   | P |   |   |   |   |
+    ///  6 |   |   |   |   |   |   |   |   |
+    ///  5 |   |   |   |   |   |   |   |   |
+    /// ```
+    /// 
+    /// # Parameters:
+    /// - `en_passant_target`: The coordinate of the en passant target square (the square where the white pawn will move if it performs en passant). This is `None` if en passant is not possible.
+    /// 
+    /// # Returns:
+    /// - A `Vec<Move>` representing the valid en passant moves, or an empty vector if no en passant capture is possible.
+    /// 
+    /// # Errors:
+    /// - Returns an error if the bitmask conversion for the starting or target positions fails.
+    fn calculate_white_pawn_moves_en_passant(&self, en_passant_target: Option<CoordinatePosition>) -> Result<Vec<Move>, MoveError> {
+        // only valid from row 6
+        const ROW_SIX: u64 = 0x00_00_FF_00_00_00_00_00;
+        if en_passant_target.is_none() {
+            return Ok(Vec::new())
+        }
+
+        let mut output = Vec::with_capacity(2);
+
+        let target_mask = en_passant_target.expect("Is not None").to_bitmask();
+        // shift back and left and shift back and right to get the two valid spots
+        // then & with ROW_SIX to ensure no overflow
+        let valid_capture_positions = ((target_mask >> 7) | (target_mask >> 9)) & ROW_SIX;
+        // check if there are any pawns occupying those positions
+        let mut valid_pawns = self.white_pawns.mask & valid_capture_positions;
+        while valid_pawns != 0 {
+            let starting_position = 1u64 << valid_pawns.trailing_zeros();
+            output.push(
+                Move::StandardMove(StandardMove {
+                    start_position: CoordinatePosition::from_bitmask(starting_position)?,
+                    end_position: CoordinatePosition::from_bitmask(target_mask)?,
+                    piece: PieceEnum::WhitePawn,
+                    en_passant_target: None,
+                    promotion: None,
+                    takes: Some((
+                        CoordinatePosition::from_bitmask(target_mask >> 8)?,
+                        PieceEnum::BlackPawn
+                    )),
+                })
+            );
+            valid_pawns &= !starting_position; // remove pawn
+        }
+
+        Ok(output)        
+    }
+
+    fn calculate_white_pawn_promotions(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+
+    fn get_piece_type_for_capture(&self, capture_position: CoordinatePosition) -> Result<PieceEnum, MoveError> {
+        if (capture_position.to_bitmask() & self.all_pieces.to_u64()) == 0 {
+            return Err(MoveError::CapturePieceNotFound(capture_position))
+        } else {
+            match capture_position {
+                v if capture_position.to_bitmask() & self.white_pieces.to_u64() > 0 => {
+                    // tis a white piece
+                    match capture_position {
+                        v if capture_position.to_bitmask() & self.white_pawns.to_u64() > 0 => {
+                            Ok(PieceEnum::WhitePawn)
+                        }
+                        v if capture_position.to_bitmask() & self.white_knights.to_u64() > 0 => {
+                            Ok(PieceEnum::WhiteKnight)
+                        }
+                        v if capture_position.to_bitmask() & self.white_bishops.to_u64() > 0 => {
+                            Ok(PieceEnum::WhiteBishop)
+                        }
+                        v if capture_position.to_bitmask() & self.white_rooks.to_u64() > 0 => {
+                            Ok(PieceEnum::WhiteRook)
+                        }
+                        v if capture_position.to_bitmask() & self.white_queens.to_u64() > 0 => {
+                            Ok(PieceEnum::WhiteQueen)
+                        }
+                        v if capture_position.to_bitmask() & self.white_kings.to_u64() > 0 => {
+                            Ok(PieceEnum::WhiteKing)
+                        }
+                        _ => Err(MoveError::CapturePieceNotFound(capture_position))
+                    }
+                }
+                _ => {
+                    // must be a black piece
+                    match capture_position {
+                        v if capture_position.to_bitmask() & self.black_pawns.to_u64() > 0 => {
+                            Ok(PieceEnum::BlackPawn)
+                        }
+                        v if capture_position.to_bitmask() & self.black_knights.to_u64() > 0 => {
+                            Ok(PieceEnum::BlackKnight)
+                        }
+                        v if capture_position.to_bitmask() & self.black_bishops.to_u64() > 0 => {
+                            Ok(PieceEnum::BlackBishop)
+                        }
+                        v if capture_position.to_bitmask() & self.black_rooks.to_u64() > 0 => {
+                            Ok(PieceEnum::BlackRook)
+                        }
+                        v if capture_position.to_bitmask() & self.black_queens.to_u64() > 0 => {
+                            Ok(PieceEnum::BlackQueen)
+                        }
+                        v if capture_position.to_bitmask() & self.black_kings.to_u64() > 0 => {
+                            Ok(PieceEnum::BlackKing)
+                        }
+                        _ => Err(MoveError::CapturePieceNotFound(capture_position))
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn create_simple_white_pawn_move(starting_position: u64, ending_position: u64) -> Result<StandardMove, MoveError> {
+    let new_move = StandardMove::new(
+        CoordinatePosition::from_bitmask(starting_position)?, 
+        CoordinatePosition::from_bitmask(ending_position)?, 
+        PieceEnum::WhitePawn, 
+        None, 
+        None, 
+        None
+    );
+    Ok(new_move)
+}
+
+fn create_double_white_pawn_move(starting_position: u64, ending_position: u64) -> Result<StandardMove, MoveError> {
+    let new_move = StandardMove::new(
+        CoordinatePosition::from_bitmask(starting_position)?, 
+        CoordinatePosition::from_bitmask(ending_position)?, 
+        PieceEnum::WhitePawn, 
+        // needs an en passant target
+        Some(CoordinatePosition::from_bitmask(ending_position >> 8)?), 
+        None, 
+        None
+    );
+    Ok(new_move)
 }

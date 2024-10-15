@@ -77,122 +77,23 @@ impl BoardBitmasks {
         &self,
         en_passant: Option<CoordinatePosition>,
     ) -> Result<Vec<Move>, MoveError> {
-        use crate::chess_state::coordinates::{
-            XCoordinate::*,
-            YCoordinate::*
-        };
-        // TODO: convert into smaller functions
-        // prepare output with space for a sensible number of moves
-        let mut output: Vec<Move> = Vec::with_capacity(16);
-        // prepare some constants for later use
-        let occupied: u64 = self.white_pieces.bitor_pieces(self.black_pieces).mask;
-        let b_to_h: u64 = 0x7F7F7F7F7F7F7F7F;
-        let a_to_g: u64 = 0xFEFEFEFEFEFEFEFE;
-        // now on to the calculating
-        let single_step = (self.white_pawns.mask << 8) & !occupied;
-        let second_step =
-            // only the white pawns on the second row, check they can move forwards once
-            ((((self.white_pawns.mask & 0xFF00) << 8) & !occupied)
-            // and then move them forward again, checking that they can
-            << 8) & !occupied;
-        let take_left = 
-            // white pawns that can move left, bitshifted up a row and left
-            ((self.white_pawns.mask & b_to_h) << 7)
-            // and we need a black piece to take
-            & self.black_pieces.mask;
-        let take_right = 
-            // white pawns that can move right, bitshifted up a row and right
-            ((self.white_pawns.mask & a_to_g) << 9)
-            // and we need a black piece to take
-            & self.black_pieces.mask;
-        let take_en_passant: Option<Vec<Move>> = match en_passant {
-            Some(coordinate) => {
-                if coordinate.y == Six { // should always be true
-                    match coordinate.x {
-                        A  => {
-                            // check only B, so left shift
-                            let valid_pawn_position = coordinate.to_bitmask() << 1;
-                            if self.white_pawns.to_u64() & valid_pawn_position > 0 {
-                                // there is a pawn on B6
-                                Some(vec![
-                                    Move::new(
-                                        CoordinatePosition::from_str("b6")?,
-                                        CoordinatePosition::from_str("a7")?,
-                                        PieceEnum::WhitePawn,
-                                        None,
-                                        None,
-                                        Some((coordinate, PieceEnum::BlackPawn))
-                                    )
-                                ])
-                            } else {
-                                None
-                            }
-                        }
-                        H => {
-                            // check only G, so right shift
-                            let valid_pawn_position = coordinate.to_bitmask() >> 1;
-                            if self.white_pawns.to_u64() & valid_pawn_position > 0 {
-                                // there is a pawn on B6
-                                Some(vec![
-                                    Move::new(
-                                        CoordinatePosition::from_str("g6")?,
-                                        CoordinatePosition::from_str("h7")?,
-                                        PieceEnum::WhitePawn,
-                                        None,
-                                        None,
-                                        Some((coordinate, PieceEnum::BlackPawn))
-                                    )
-                                ])
-                            } else {
-                                None
-                            }
-                        }
-                        _ => {
-                            // now we need to check both left and right
-                            let mut temp = Vec::new();
-                            let left = coordinate.to_bitmask() >> 1;
-                            if left & self.white_pawns.to_u64() > 0 {
-                                temp.push(
-                                    Move::new(
-                                        CoordinatePosition::from_bitmask(left)?,
-                                        // a row in front of the target pawn
-                                        CoordinatePosition::from_bitmask(coordinate.to_bitmask() << 8)?,
-                                        PieceEnum::WhitePawn,
-                                        None,
-                                        None,
-                                        Some((coordinate, PieceEnum::BlackPawn))
-                                    )
-                                )
-                            }
-                            let right = coordinate.to_bitmask() << 1;
-                            if right & self.white_pawns.to_u64() > 0 {
-                                temp.push(
-                                    Move::new(
-                                        CoordinatePosition::from_bitmask(right)?,
-                                        // a row in front of the target pawn
-                                        CoordinatePosition::from_bitmask(coordinate.to_bitmask() << 8)?,
-                                        PieceEnum::WhitePawn,
-                                        None,
-                                        None,
-                                        Some((coordinate, PieceEnum::BlackPawn))
-                                    )
-                                )
-                            }
-                            // finally return
-                            if temp.is_empty() {
-                                None
-                            } else {
-                                Some(temp)
-                            }
-                        }
-                    }
-                } else {
-                    panic!("Invalid en passant target given")
-                }
-            },
-            None => None,
-        };
-        todo!()
+        let occupied = self.all_pieces.mask;
+
+        let mut output: Vec<Move> = Vec::new();
+
+        let single_step_moves = self.calculate_white_pawn_moves_single_step(occupied)?;
+        let double_step_moves = self.calculate_white_pawn_moves_double_step(occupied)?;
+        let capture_left_moves = self.calculate_white_pawn_moves_capture_left()?;
+        let capture_right_moves = self.calculate_white_pawn_moves_capture_right()?;
+        let promotion_moves = self.calculate_white_pawn_promotions(occupied)?;
+
+        output.extend(single_step_moves);
+        output.extend(double_step_moves);
+        output.extend(capture_left_moves);
+        output.extend(capture_right_moves);
+        output.extend(promotion_moves);
+
+        Ok(output)
     }
 
     fn calculate_white_pawn_moves_single_step(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
@@ -248,9 +149,75 @@ fn calculate_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Mo
     Ok(output)
 }
 
-    fn calculate_white_pawn_moves_capture_left(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+    fn calculate_white_pawn_moves_capture_left(&self) -> Result<Vec<Move>, MoveError> {
+        let mut output: Vec<Move> = Vec::with_capacity(8);
 
-    fn calculate_white_pawn_moves_capture_right(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+        // valid from rows 2-6 and only for pawns that can move left (ie not in column A)
+        const VALID_SQUARES_NOT_IN_COLUMN_A: u64 = 0x00_00_7F_7F_7F_7F_7F_00;
+
+        let valid_pawns = self.white_pawns.mask & VALID_SQUARES_NOT_IN_COLUMN_A;
+        // valid moves move up and left one, and must capture a black piece
+        let mut valid_captures = (valid_pawns << 7) & self.black_pieces.mask;
+
+        while valid_captures != 0 {
+            let next_move = 1u64 << valid_captures.trailing_zeros(); // get next valid move
+            let starting_position = next_move >> 7; // find the starting position one row back and to the right
+
+            let coord_next_move = CoordinatePosition::from_bitmask(next_move)?;
+
+            output.push(
+                Move::StandardMove(
+                    StandardMove {
+                        start_position: CoordinatePosition::from_bitmask(starting_position)?,
+                        end_position: coord_next_move,
+                        piece: PieceEnum::WhitePawn,
+                        en_passant_target: None,
+                        promotion: None,
+                        takes: Some((coord_next_move, self.get_piece_type_for_capture(coord_next_move)?))
+                    }
+                )
+            );
+
+            valid_captures &= !next_move; // remove that move
+        }
+
+        Ok(output)
+    }
+
+    fn calculate_white_pawn_moves_capture_right(&self) -> Result<Vec<Move>, MoveError> {
+        let mut output: Vec<Move> = Vec::with_capacity(8);
+
+        // valid from rows 2-6 and only for pawns that can move right (ie not in column H)
+        const VALID_SQUARES_NOT_IN_COLUMN_H: u64 = 0x00_00_FE_FE_FE_FE_FE_00;
+
+        let valid_pawns = self.white_pawns.mask & VALID_SQUARES_NOT_IN_COLUMN_H;
+        // valid moves move up and left one, and must capture a black piece
+        let mut valid_captures = (valid_pawns << 9) & self.black_pieces.mask;
+
+        while valid_captures != 0 {
+            let next_move = 1u64 << valid_captures.trailing_zeros(); // get next valid move
+            let starting_position = next_move >> 9; // find the starting position one row back and to the right
+
+            let coord_next_move = CoordinatePosition::from_bitmask(next_move)?;
+
+            output.push(
+                Move::StandardMove(
+                    StandardMove {
+                        start_position: CoordinatePosition::from_bitmask(starting_position)?,
+                        end_position: coord_next_move,
+                        piece: PieceEnum::WhitePawn,
+                        en_passant_target: None,
+                        promotion: None,
+                        takes: Some((coord_next_move, self.get_piece_type_for_capture(coord_next_move)?))
+                    }
+                )
+            );
+
+            valid_captures &= !next_move; // remove that move
+        }
+
+        Ok(output)
+    }
 
     /// Calculates the en passant capture moves for white pawns.
     /// 
@@ -327,32 +294,127 @@ fn calculate_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Mo
         Ok(output)        
     }
 
-    fn calculate_white_pawn_promotions(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {}
+    fn calculate_white_pawn_promotions(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
+        let mut output: Vec<Move> = Vec::with_capacity(32);
+
+        const ROW_SEVEN: u64 = 0x00_FF_00_00_00_00_00_00;
+        const ROW_SEVEN_NOT_COLUMN_A: u64 = 0x00_7F_00_00_00_00_00_00;
+        const ROW_SEVEN_NOT_COLUMN_H: u64 = 0x00_FE_00_00_00_00_00_00;
+
+        let valid_pawns = self.white_pawns.mask & ROW_SEVEN;
+
+        if valid_pawns == 0 {
+            return Ok(output)
+        }
+
+        // there is at least one valid pawn
+        let mut valid_move_forward = (valid_pawns << 8) & !occupied;
+        while valid_move_forward != 0 {
+            let next_move = 1u64 << valid_move_forward.trailing_zeros();
+            let starting_position = next_move >> 8;
+
+            let coord_next_move = CoordinatePosition::from_bitmask(next_move)?;
+            let coord_starting_pos = CoordinatePosition::from_bitmask(starting_position)?;
+
+            for piece in [PieceEnum::WhiteKnight, PieceEnum::WhiteBishop, PieceEnum::WhiteRook, PieceEnum::WhiteQueen] {
+                output.push(
+                    Move::StandardMove(
+                        StandardMove {
+                            start_position: coord_starting_pos,
+                            end_position: coord_next_move,
+                            piece: PieceEnum::WhitePawn,
+                            en_passant_target: None,
+                            promotion: Some(piece),
+                            takes: None
+                        }
+                    )
+                )
+            }
+
+            valid_move_forward &= !next_move;
+        }
+
+        let mut valid_capture_left = ((valid_pawns & ROW_SEVEN_NOT_COLUMN_A) << 7) & self.black_pieces.mask;
+        while valid_capture_left != 0 {
+            let next_move = 1u64 << valid_capture_left.trailing_zeros();
+            let starting_position = next_move >> 7;
+
+            let coord_next_move = CoordinatePosition::from_bitmask(next_move)?;
+            let coord_starting_pos = CoordinatePosition::from_bitmask(starting_position)?;
+            let captured_piece = self.get_piece_type_for_capture(coord_next_move)?;
+
+            for piece in [PieceEnum::WhiteKnight, PieceEnum::WhiteBishop, PieceEnum::WhiteRook, PieceEnum::WhiteQueen] {
+                output.push(
+                    Move::StandardMove(
+                        StandardMove {
+                            start_position: coord_starting_pos,
+                            end_position: coord_next_move,
+                            piece: PieceEnum::WhitePawn,
+                            en_passant_target: None,
+                            promotion: Some(piece),
+                            takes: Some((coord_next_move, captured_piece))
+                        }
+                    )
+                )
+            }
+
+            valid_capture_left &= !next_move;
+        }
+
+        let mut valid_capture_right = ((valid_pawns & ROW_SEVEN_NOT_COLUMN_H) << 9) & self.black_pieces.mask;
+        while valid_capture_right != 0 {
+            let next_move = 1u64 << valid_capture_right.trailing_zeros();
+            let starting_position = next_move >> 9;
+
+            let coord_next_move = CoordinatePosition::from_bitmask(next_move)?;
+            let coord_starting_pos = CoordinatePosition::from_bitmask(starting_position)?;
+            let captured_piece = self.get_piece_type_for_capture(coord_next_move)?;
+
+            for piece in [PieceEnum::WhiteKnight, PieceEnum::WhiteBishop, PieceEnum::WhiteRook, PieceEnum::WhiteQueen] {
+                output.push(
+                    Move::StandardMove(
+                        StandardMove {
+                            start_position: coord_starting_pos,
+                            end_position: coord_next_move,
+                            piece: PieceEnum::WhitePawn,
+                            en_passant_target: None,
+                            promotion: Some(piece),
+                            takes: Some((coord_next_move, captured_piece))
+                        }
+                    )
+                )
+            }
+
+            valid_capture_right &= !next_move;
+        }
+
+        Ok(output)
+    }
 
     fn get_piece_type_for_capture(&self, capture_position: CoordinatePosition) -> Result<PieceEnum, MoveError> {
         if (capture_position.to_bitmask() & self.all_pieces.to_u64()) == 0 {
             return Err(MoveError::CapturePieceNotFound(capture_position))
         } else {
             match capture_position {
-                v if capture_position.to_bitmask() & self.white_pieces.to_u64() > 0 => {
+                _ if capture_position.to_bitmask() & self.white_pieces.to_u64() > 0 => {
                     // tis a white piece
                     match capture_position {
-                        v if capture_position.to_bitmask() & self.white_pawns.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.white_pawns.to_u64() > 0 => {
                             Ok(PieceEnum::WhitePawn)
                         }
-                        v if capture_position.to_bitmask() & self.white_knights.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.white_knights.to_u64() > 0 => {
                             Ok(PieceEnum::WhiteKnight)
                         }
-                        v if capture_position.to_bitmask() & self.white_bishops.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.white_bishops.to_u64() > 0 => {
                             Ok(PieceEnum::WhiteBishop)
                         }
-                        v if capture_position.to_bitmask() & self.white_rooks.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.white_rooks.to_u64() > 0 => {
                             Ok(PieceEnum::WhiteRook)
                         }
-                        v if capture_position.to_bitmask() & self.white_queens.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.white_queens.to_u64() > 0 => {
                             Ok(PieceEnum::WhiteQueen)
                         }
-                        v if capture_position.to_bitmask() & self.white_kings.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.white_kings.to_u64() > 0 => {
                             Ok(PieceEnum::WhiteKing)
                         }
                         _ => Err(MoveError::CapturePieceNotFound(capture_position))
@@ -361,22 +423,22 @@ fn calculate_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Mo
                 _ => {
                     // must be a black piece
                     match capture_position {
-                        v if capture_position.to_bitmask() & self.black_pawns.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.black_pawns.to_u64() > 0 => {
                             Ok(PieceEnum::BlackPawn)
                         }
-                        v if capture_position.to_bitmask() & self.black_knights.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.black_knights.to_u64() > 0 => {
                             Ok(PieceEnum::BlackKnight)
                         }
-                        v if capture_position.to_bitmask() & self.black_bishops.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.black_bishops.to_u64() > 0 => {
                             Ok(PieceEnum::BlackBishop)
                         }
-                        v if capture_position.to_bitmask() & self.black_rooks.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.black_rooks.to_u64() > 0 => {
                             Ok(PieceEnum::BlackRook)
                         }
-                        v if capture_position.to_bitmask() & self.black_queens.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.black_queens.to_u64() > 0 => {
                             Ok(PieceEnum::BlackQueen)
                         }
-                        v if capture_position.to_bitmask() & self.black_kings.to_u64() > 0 => {
+                        _ if capture_position.to_bitmask() & self.black_kings.to_u64() > 0 => {
                             Ok(PieceEnum::BlackKing)
                         }
                         _ => Err(MoveError::CapturePieceNotFound(capture_position))

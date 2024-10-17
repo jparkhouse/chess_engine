@@ -3,7 +3,7 @@ use std::{collections::btree_map::Values, error};
 use thiserror::Error;
 
 use crate::{
-    bitmask::{black_pieces, generic::Bitmask, pieces::BitOpsForPieces, white_pieces}, BlackPawns, BlackPieces, WhitePawns, WhitePieces
+    bitmask::{black_pieces, generic::Bitmask, pieces::{ArePieces, BitOpsForPieces}, white_pieces}, BlackPawns, BlackPieces, WhitePawns, WhitePieces, Pieces
 };
 
 use super::{board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition, coordinates::CoordinateError};
@@ -445,6 +445,29 @@ fn calculate_white_pawn_moves_double_step(&self, occupied: u64) -> Result<Vec<Mo
                     }
                 }
             }
+        }
+    }
+
+    fn calculate_diagonal_moves_up_right(&self, piece_type: PieceEnum, occupied: u64) -> Result<Vec<Move>, MoveError> {
+        struct TempMove {
+ 
+        }
+    }
+
+    fn piece_enum_to_bitmask(&self, piece_type: PieceEnum) -> u64 {
+        match piece_type {
+            PieceEnum::WhitePawn => self.white_pawns.mask,
+            PieceEnum::WhiteKnight => self.white_knights.mask,
+            PieceEnum::WhiteBishop => self.white_bishops.mask,
+            PieceEnum::WhiteRook => self.white_rooks.mask,
+            PieceEnum::WhiteQueen => self.white_queens.mask,
+            PieceEnum::WhiteKing => self.white_kings.mask,
+            PieceEnum::BlackPawn => self.black_pawns.mask,
+            PieceEnum::BlackKnight => self.black_knights.mask,
+            PieceEnum::BlackBishop => self.black_bishops.mask,
+            PieceEnum::BlackRook => self.black_rooks.mask,
+            PieceEnum::BlackQueen => self.black_queens.mask,
+            PieceEnum::BlackKing => self.black_kings.mask,
         }
     }
 }

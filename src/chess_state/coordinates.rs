@@ -14,10 +14,10 @@ pub(crate) enum CoordinateError {
     #[error("String {0} is not of length 2 to be valid xy coordinates")]
     XYCoordinatesFromInvalidLengthStr(String),
 
-    #[error("Bitmask {0} does not convert to valid x coordinates")]
+    #[error("Bitmask {0} converts to more than one X coordinate")]
     XCoordinateFromInvalidBitmask(u64),
 
-    #[error("Bitmask {0} does not convert to valid y coordinates")]
+    #[error("Bitmask {0} converts to more than one Y coordinate")]
     YCoordinateFromInvalidBitmask(u64),
 
     #[error("Bitmask {0} contains no set bit, relating to no position")]
@@ -28,40 +28,42 @@ pub(crate) enum CoordinateError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u64)]
 pub(crate) enum XCoordinate {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
+    A = 0xFF << 0,
+    B = 0xFF << 1,
+    C = 0xFF << 2,
+    D = 0xFF << 3,
+    E = 0xFF << 4,
+    F = 0xFF << 5,
+    G = 0xFF << 6,
+    H = 0xFF << 7,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u64)]
 pub(crate) enum YCoordinate {
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
+    One = 0x01_01_01_01_01_01_01_01 << 7,
+    Two = 0x01_01_01_01_01_01_01_01 << 6,
+    Three = 0x01_01_01_01_01_01_01_01 << 5,
+    Four = 0x01_01_01_01_01_01_01_01 << 4,
+    Five = 0x01_01_01_01_01_01_01_01 << 3,
+    Six = 0x01_01_01_01_01_01_01_01 << 2,
+    Seven = 0x01_01_01_01_01_01_01_01 << 1,
+    Eight = 0x01_01_01_01_01_01_01_01 << 0,
 }
 
 pub(crate) trait CoordinateConversion<T>: Sized {
     type Error;
 
-    fn from_value(value: T) -> Result<Self, Self::Error>;
+    fn try_from_value(value: T) -> Result<Self, Self::Error>;
     fn to_value(self) -> T;
 }
 
 impl CoordinateConversion<char> for XCoordinate {
     type Error = CoordinateError;
 
-    fn from_value(value: char) -> Result<Self, Self::Error> {
+    fn try_from_value(value: char) -> Result<Self, Self::Error> {
         use CoordinateError::*;
         use XCoordinate::*;
 
@@ -96,7 +98,7 @@ impl CoordinateConversion<char> for XCoordinate {
 impl CoordinateConversion<char> for YCoordinate {
     type Error = CoordinateError;
 
-    fn from_value(value: char) -> Result<Self, Self::Error> {
+    fn try_from_value(value: char) -> Result<Self, Self::Error> {
         use CoordinateError::*;
         use YCoordinate::*;
 
@@ -132,52 +134,59 @@ impl CoordinateConversion<char> for YCoordinate {
 impl CoordinateConversion<u64> for XCoordinate {
     type Error = CoordinateError;
 
-    fn from_value(value: u64) -> Result<Self, Self::Error> {
-        use CoordinateError::*;
+    fn try_from_value(value: u64) -> Result<Self, Self::Error> {
         use XCoordinate::*;
-
-        let variants = [A, B, C, D, E, F, G, H];
-
-        return variants
-            .iter()
-            .find(|&&coord| CoordinateConversion::<u64>::to_value(coord) & value > 0)
-            .copied()
-            .ok_or(XCoordinateFromInvalidBitmask(value));
+        let mut counter = 0;
+        let mut output = XCoordinate::A;
+        for i in [A, B, C, D, E, F, G, H] {
+            if value & (i as u64) > 0 {
+                counter += 1;
+                output = i;
+            }
+        }
+        if counter > 1 {
+            return Err(CoordinateError::XCoordinateFromInvalidBitmask(value))
+        }
+        return Ok(output)
     }
 
     fn to_value(self) -> u64 {
-        let shift = self as u64;
-        let mut bitmask = 0 as u64;
-        for row in 0..8 {
-            bitmask |= 1u64 << (shift + row * 8)
-        }
-        return bitmask;
+        self as u64
     }
 }
 
 impl CoordinateConversion<u64> for YCoordinate {
     type Error = CoordinateError;
 
-    fn from_value(value: u64) -> Result<Self, Self::Error> {
-        use CoordinateError::*;
+    fn try_from_value(value: u64) -> Result<Self, Self::Error> {
         use YCoordinate::*;
-
-        let variants = [One, Two, Three, Four, Five, Six, Seven, Eight];
-
-        return variants
-            .iter()
-            .find(|&&coord| CoordinateConversion::<u64>::to_value(coord) & value > 0)
-            .copied()
-            .ok_or(YCoordinateFromInvalidBitmask(value));
+        let mut counter = 0;
+        let mut output = YCoordinate::One;
+        for i in [One, Two, Three, Four, Five, Six, Seven, Eight] {
+            if value & (i as u64) > 0 {
+                counter += 1;
+                output = i;
+            }
+        }
+        if counter > 1 {
+            return Err(CoordinateError::YCoordinateFromInvalidBitmask(value))
+        }
+        return Ok(output)
     }
 
     fn to_value(self) -> u64 {
-        // we take a row, which is 0xFF (8 consecutive on bits)
-        // then we figure out how much to shift it by
-        // One = 0u8, so requires no shifting
-        // Two = 1u8, so requires shifting by 8
-        // etc etc
-        let shift = (self as u64) * 8;
-        return 0xFFu64 << shift;
+        self as u64
+    }
+}
+
+impl From<XCoordinate> for u64 {
+    fn from(value: XCoordinate) -> Self {
+        value as u64
+    }
+}
+
+impl From<YCoordinate> for u64 {
+    fn from(value: YCoordinate) -> Self {
+        value as u64
     }
 }

@@ -26,8 +26,8 @@ impl CoordinatePosition {
             input.chars().next().expect("Length is 2"),
         ];
 
-        let x_enum: XCoordinate = CoordinateConversion::<char>::from_value(chars[0])?;
-        let y_enum: YCoordinate = CoordinateConversion::<char>::from_value(chars[1])?;
+        let x_enum: XCoordinate = CoordinateConversion::<char>::try_from_value(chars[0])?;
+        let y_enum: YCoordinate = CoordinateConversion::<char>::try_from_value(chars[1])?;
 
         return Ok(Self {
             x: x_enum,
@@ -42,8 +42,8 @@ impl CoordinatePosition {
         };
 
         if has_one_bit_set(bitmask) {
-            let x_enum: XCoordinate = CoordinateConversion::<u64>::from_value(bitmask)?;
-            let y_enum: YCoordinate = CoordinateConversion::<u64>::from_value(bitmask)?;
+            let x_enum: XCoordinate = CoordinateConversion::<u64>::try_from_value(bitmask)?;
+            let y_enum: YCoordinate = CoordinateConversion::<u64>::try_from_value(bitmask)?;
             return Ok(Self {
                 x: x_enum,
                 y: y_enum,

@@ -126,3 +126,38 @@ impl BoardBitmasks {
         output
     }
 }
+
+#[cfg(test)]
+mod tests {
+    mod unit_tests {
+        mod new {
+            use crate::chess_state::board_bitmask::BoardBitmasks;
+
+            #[test]
+            fn initialises_empty_bitmask_board_when_using_new() {
+                // arrange + act
+                let board = BoardBitmasks::new();
+                // assert
+                assert_eq!(board.all_pieces.to_u64(), 0);
+                assert_eq!(board.white_pieces.to_u64(), 0);
+                assert_eq!(board.black_pieces.to_u64(), 0);
+                assert_eq!(board.white_pawns.to_u64(), 0);
+                assert_eq!(board.white_knights.to_u64(), 0);
+                assert_eq!(board.white_bishops.to_u64(), 0);
+                assert_eq!(board.white_rooks.to_u64(), 0);
+                assert_eq!(board.white_queens.to_u64(), 0);
+                assert_eq!(board.white_kings.to_u64(), 0);
+                assert_eq!(board.black_pawns.to_u64(), 0);
+                assert_eq!(board.black_knights.to_u64(), 0);
+                assert_eq!(board.black_bishops.to_u64(), 0);
+                assert_eq!(board.black_rooks.to_u64(), 0);
+                assert_eq!(board.black_queens.to_u64(), 0);
+                assert_eq!(board.black_kings.to_u64(), 0);
+            }
+        }
+    }
+
+    mod from_board_hash_map {
+        // needs an almost integration test approach
+    }
+}

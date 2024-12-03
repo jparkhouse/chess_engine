@@ -83,3 +83,44 @@ pub(crate) mod piece_structs {
     #[derive(Debug, Clone, Copy)]
     pub(crate) struct BlackKings;
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn generates_valid_string_when_using_to_string_method_from_display_trait() {
+        use crate::PieceEnum::*;
+        // arrange
+        let all_pieces = [
+            WhitePawn,
+            WhiteKnight,
+            WhiteBishop,
+            WhiteRook,
+            WhiteQueen,
+            WhiteKing,
+            BlackPawn,
+            BlackKnight,
+            BlackBishop,
+            BlackRook,
+            BlackQueen,
+            BlackKing,
+        ];
+        let expected_output: Vec<String> = vec![
+            String::from("P"), // WhitePawn
+            String::from("N"), // WhiteKnight
+            String::from("B"), // WhiteBishop
+            String::from("R"), // WhiteRook
+            String::from("Q"), // WhiteQueen
+            String::from("K"), // WhiteKing
+            String::from("p"), // BlackPawn
+            String::from("n"), // BlackKnight
+            String::from("b"), // BlackBishop
+            String::from("r"), // BlackRook
+            String::from("q"), // BlackQueen
+            String::from("k"), // BlackKing
+        ];
+        // act
+        let output: Vec<String> = all_pieces.into_iter().map(|p| p.to_string()).collect();
+        // assert
+        assert_eq!(output, expected_output)
+    }
+}

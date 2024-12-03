@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::{chess_state::{chess_pieces::PieceEnum, coordinate_point::CoordinatePosition}, shared};
+use crate::{
+    chess_state::{chess_pieces::PieceEnum, coordinate_point::CoordinatePosition},
+    shared,
+};
 
 #[derive(Debug, Error)]
 enum BoardHashMapError {
@@ -20,7 +23,8 @@ impl BoardHashMap {
         }
     }
 
-    /// allows the insertion of a single piece
+    /// allows the insertion of a single piece. Uses the replace flag to help ensure that pieces cannot overlap,
+    /// except in cases where this may specifically be required, like captures.
     pub(crate) fn insert(
         &mut self,
         point: CoordinatePosition,
@@ -44,7 +48,9 @@ impl BoardHashMap {
 
     /// Returns all the positions containing a Piece and the Piece it contains as a (CoordinatePosition, PieceEnum)
     /// tuple.
-    pub(crate) fn to_iter<'a>(&'a self) -> impl Iterator<Item = (CoordinatePosition, PieceEnum)> + 'a {
+    pub(crate) fn to_iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (CoordinatePosition, PieceEnum)> + 'a {
         self.map.iter().map(|(&coord, &piece)| {
             (
                 CoordinatePosition::from_bitmask(1u64 << coord)
@@ -52,5 +58,27 @@ impl BoardHashMap {
                 piece,
             )
         })
+    }
+
+    /// Allows access to the underlying hashmap for querying individual positions
+    pub(crate) fn get(&self, position: CoordinatePosition) -> Option<&PieceEnum> {
+        let key = shared::single_bit_bitmask_to_u8(&position.to_bitmask());
+        self.map.get(&key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod new {
+        use crate::chess_state::board_hash_map::BoardHashMap;
+
+        #[test]
+        fn creates_empty_hash_map_when_initialised() {
+            // arrange & act
+            let new_board_hash_map = BoardHashMap::new();
+
+            // assert
+            assert!(new_board_hash_map.map.is_empty())
+        }
     }
 }

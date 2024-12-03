@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub(crate) enum CoordinateError {
+#[derive(Debug, Error, PartialEq)]
+pub enum CoordinateError {
     #[error("char {0} does not convert to valid x coordinate in range a-h")]
     XCoordinateFromInvalidChar(char),
 
@@ -24,36 +24,36 @@ pub(crate) enum CoordinateError {
     XYCoordinatesFromEmptyBitmask(u64),
 
     #[error("Bitmask {0} contains more than one set bit, relating to multiple positions")]
-    XYCoordinatesFromMultibitBitmask(u64),
+    XYCoordinatesFromMultiBitBitmask(u64),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
-pub(crate) enum XCoordinate {
-    A = 0xFF << 0,
-    B = 0xFF << 1,
-    C = 0xFF << 2,
-    D = 0xFF << 3,
-    E = 0xFF << 4,
-    F = 0xFF << 5,
-    G = 0xFF << 6,
-    H = 0xFF << 7,
+pub enum XCoordinate {
+    A = 0x01_01_01_01_01_01_01_01 << 7,
+    B = 0x01_01_01_01_01_01_01_01 << 6,
+    C = 0x01_01_01_01_01_01_01_01 << 5,
+    D = 0x01_01_01_01_01_01_01_01 << 4,
+    E = 0x01_01_01_01_01_01_01_01 << 3,
+    F = 0x01_01_01_01_01_01_01_01 << 2,
+    G = 0x01_01_01_01_01_01_01_01 << 1,
+    H = 0x01_01_01_01_01_01_01_01 << 0,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
-pub(crate) enum YCoordinate {
-    One = 0x01_01_01_01_01_01_01_01 << 7,
-    Two = 0x01_01_01_01_01_01_01_01 << 6,
-    Three = 0x01_01_01_01_01_01_01_01 << 5,
-    Four = 0x01_01_01_01_01_01_01_01 << 4,
-    Five = 0x01_01_01_01_01_01_01_01 << 3,
-    Six = 0x01_01_01_01_01_01_01_01 << 2,
-    Seven = 0x01_01_01_01_01_01_01_01 << 1,
-    Eight = 0x01_01_01_01_01_01_01_01 << 0,
+pub enum YCoordinate {
+    One = 0xFF << 0,
+    Two = 0xFF << 8,
+    Three = 0xFF << 16,
+    Four = 0xFF << 24,
+    Five = 0xFF << 32,
+    Six = 0xFF << 40,
+    Seven = 0xFF << 48,
+    Eight = 0xFF << 56,
 }
 
-pub(crate) trait CoordinateConversion<T>: Sized {
+pub trait CoordinateConversion<T>: Sized {
     type Error;
 
     fn try_from_value(value: T) -> Result<Self, Self::Error>;
@@ -145,9 +145,9 @@ impl CoordinateConversion<u64> for XCoordinate {
             }
         }
         if counter > 1 {
-            return Err(CoordinateError::XCoordinateFromInvalidBitmask(value))
+            return Err(CoordinateError::XCoordinateFromInvalidBitmask(value));
         }
-        return Ok(output)
+        return Ok(output);
     }
 
     fn to_value(self) -> u64 {
@@ -169,9 +169,9 @@ impl CoordinateConversion<u64> for YCoordinate {
             }
         }
         if counter > 1 {
-            return Err(CoordinateError::YCoordinateFromInvalidBitmask(value))
+            return Err(CoordinateError::YCoordinateFromInvalidBitmask(value));
         }
-        return Ok(output)
+        return Ok(output);
     }
 
     fn to_value(self) -> u64 {
@@ -188,5 +188,276 @@ impl From<XCoordinate> for u64 {
 impl From<YCoordinate> for u64 {
     fn from(value: YCoordinate) -> Self {
         value as u64
+    }
+}
+
+#[cfg(test)]
+mod coordinates_tests {
+    mod x_coordinate_conversion_to_char {
+        use crate::chess_state::coordinates::{
+            CoordinateConversion, CoordinateError, XCoordinate, XCoordinate::*,
+        };
+
+        #[test]
+        fn converts_enum_value_correctly_when_given_valid_char() {
+            // arrange
+            let valid_lower_case: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            let valid_upper_case: [char; 8] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+            let expected_output: Vec<XCoordinate> = vec![A, B, C, D, E, F, G, H];
+            // act
+            let enums_from_lower_case: Vec<XCoordinate> = valid_lower_case
+                .iter()
+                .map(|&ch| {
+                    <XCoordinate as CoordinateConversion<char>>::try_from_value(ch)
+                        .expect("valid lower case char")
+                })
+                .collect();
+            let enums_from_upper_case: Vec<XCoordinate> = valid_upper_case
+                .iter()
+                .map(|&ch| {
+                    <XCoordinate as CoordinateConversion<char>>::try_from_value(ch)
+                        .expect("valid upper case char")
+                })
+                .collect();
+            // assert
+            assert_eq!(enums_from_lower_case, expected_output);
+            assert_eq!(enums_from_upper_case, expected_output);
+        }
+
+        #[test]
+        fn returns_correct_error_when_given_invalid_char() {
+            // arrange
+            let invalid_chars = ['v', '3', '"', '@', 't', 'Y'];
+            let expected_output: Vec<CoordinateError> = invalid_chars
+                .iter()
+                .map(|&ch| CoordinateError::XCoordinateFromInvalidChar(ch))
+                .collect();
+            // act
+            let output: Vec<CoordinateError> = invalid_chars
+                .iter()
+                .map(|&ch| {
+                    <XCoordinate as CoordinateConversion<char>>::try_from_value(ch)
+                        .expect_err("invalid char")
+                })
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+
+        #[test]
+        fn returns_correct_char_when_converted_from_enum() {
+            // arrange
+            let enums = [A, B, C, D, E, F, G, H];
+            let expected_output = vec!['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            // act
+            let output: Vec<char> = enums
+                .iter()
+                .map(|&e| CoordinateConversion::<char>::to_value(e))
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+    }
+    mod y_coordinate_conversion_to_char {
+        use crate::chess_state::coordinates::{
+            CoordinateConversion, CoordinateError, YCoordinate, YCoordinate::*,
+        };
+
+        #[test]
+        fn converts_enum_value_correctly_when_given_valid_char() {
+            // arrange
+            let valid_numbers: [char; 8] = ['1', '2', '3', '4', '5', '6', '7', '8'];
+            let expected_output: Vec<YCoordinate> =
+                vec![One, Two, Three, Four, Five, Six, Seven, Eight];
+            // act
+            let enums_from_valid_numbers: Vec<YCoordinate> = valid_numbers
+                .iter()
+                .map(|&ch| {
+                    <YCoordinate as CoordinateConversion<char>>::try_from_value(ch)
+                        .expect("valid number char")
+                })
+                .collect();
+            // assert
+            assert_eq!(enums_from_valid_numbers, expected_output);
+        }
+
+        #[test]
+        fn returns_correct_error_when_given_invalid_char() {
+            // arrange
+            let invalid_chars = ['v', 'a', '"', '@', 't', 'Y'];
+            let expected_output: Vec<CoordinateError> = invalid_chars
+                .iter()
+                .map(|&ch| CoordinateError::YCoordinateFromInvalidChar(ch))
+                .collect();
+            // act
+            let output: Vec<CoordinateError> = invalid_chars
+                .iter()
+                .map(|&ch| {
+                    <YCoordinate as CoordinateConversion<char>>::try_from_value(ch)
+                        .expect_err("invalid char")
+                })
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+
+        #[test]
+        fn returns_correct_char_when_converted_from_enum() {
+            // arrange
+            let enums = [One, Two, Three, Four, Five, Six, Seven, Eight];
+            let expected_output = vec!['1', '2', '3', '4', '5', '6', '7', '8'];
+            // act
+            let output: Vec<char> = enums
+                .iter()
+                .map(|&e| CoordinateConversion::<char>::to_value(e))
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+    }
+
+    mod x_coordinate_conversion_to_u64 {
+        use crate::chess_state::coordinates::{
+            CoordinateConversion, CoordinateError, XCoordinate, XCoordinate::*,
+        };
+
+        #[test]
+        fn returns_correct_u64s_when_converting_from_enums() {
+            // arrange
+            let enums = [A, B, C, D, E, F, G, H];
+            let expected_output: Vec<u64> = vec![
+                0x01_01_01_01_01_01_01_01 << 7,
+                0x01_01_01_01_01_01_01_01 << 6,
+                0x01_01_01_01_01_01_01_01 << 5,
+                0x01_01_01_01_01_01_01_01 << 4,
+                0x01_01_01_01_01_01_01_01 << 3,
+                0x01_01_01_01_01_01_01_01 << 2,
+                0x01_01_01_01_01_01_01_01 << 1,
+                0x01_01_01_01_01_01_01_01 << 0,
+            ];
+            // act
+            let output: Vec<u64> = enums
+                .iter()
+                .map(|&e| <XCoordinate as CoordinateConversion<u64>>::to_value(e))
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+
+        #[test]
+        fn returns_correct_error_when_given_multi_coordinate_bitflag() {
+            // arrange
+            let invalid_bitflag: u64 = // both A and B
+                0x01_01_01_01_01_01_01_01 << 7 | 0x01_01_01_01_01_01_01_01 << 6;
+            // act
+            let output =
+                <XCoordinate as CoordinateConversion<u64>>::try_from_value(invalid_bitflag);
+            // assert
+            assert!(output.is_err());
+            let err = output.expect_err("must be an error");
+            assert_eq!(
+                err,
+                CoordinateError::XCoordinateFromInvalidBitmask(invalid_bitflag)
+            )
+        }
+
+        #[test]
+        fn returns_correct_enum_values_when_given_valid_u64s() {
+            // arrange
+            let enums_as_u64s: [u64; 8] = [
+                0x01_01_01_01_01_01_01_01 << 7,
+                0x01_01_01_01_01_01_01_01 << 6,
+                0x01_01_01_01_01_01_01_01 << 5,
+                0x01_01_01_01_01_01_01_01 << 4,
+                0x01_01_01_01_01_01_01_01 << 3,
+                0x01_01_01_01_01_01_01_01 << 2,
+                0x01_01_01_01_01_01_01_01 << 1,
+                0x01_01_01_01_01_01_01_01 << 0,
+            ];
+            let expected_output: Vec<XCoordinate> = vec![A, B, C, D, E, F, G, H];
+            // act
+            let output: Vec<XCoordinate> = enums_as_u64s
+                .iter()
+                .map(|&u| {
+                    <XCoordinate as CoordinateConversion<u64>>::try_from_value(u)
+                        .expect("Valid u64 value should produce valid enum")
+                })
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+    }
+
+    mod y_coordinate_conversion_to_u64 {
+        use crate::chess_state::coordinates::{
+            CoordinateConversion, CoordinateError, YCoordinate, YCoordinate::*,
+        };
+
+        #[test]
+        fn returns_correct_u64s_when_converting_from_enums() {
+            // arrange
+            let enums = [One, Two, Three, Four, Five, Six, Seven, Eight];
+            let expected_output: Vec<u64> = vec![
+                0xFF << 0,
+                0xFF << 8,
+                0xFF << 16,
+                0xFF << 24,
+                0xFF << 32,
+                0xFF << 40,
+                0xFF << 48,
+                0xFF << 56,
+            ];
+            // act
+            let output: Vec<u64> = enums
+                .iter()
+                .map(|&e| <YCoordinate as CoordinateConversion<u64>>::to_value(e))
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
+
+        #[test]
+        fn returns_correct_error_when_given_multi_coordinate_bitflag() {
+            // arrange
+            let invalid_bitflag: u64 = // both A and B, crossing all YCoordinates
+                0x01_01_01_01_01_01_01_01 << 7 | 0x01_01_01_01_01_01_01_01 << 6;
+            // act
+            let output =
+                <YCoordinate as CoordinateConversion<u64>>::try_from_value(invalid_bitflag);
+            // assert
+            assert!(output.is_err());
+            let err = output.expect_err("must be an error");
+            assert_eq!(
+                err,
+                CoordinateError::YCoordinateFromInvalidBitmask(invalid_bitflag)
+            )
+        }
+
+        #[test]
+        fn returns_correct_enum_values_when_given_valid_u64s() {
+            // arrange
+            let enums_as_u64s: [u64; 8] = [
+                0xFF << 0,
+                0xFF << 8,
+                0xFF << 16,
+                0xFF << 24,
+                0xFF << 32,
+                0xFF << 40,
+                0xFF << 48,
+                0xFF << 56,
+            ];
+            let expected_output: Vec<YCoordinate> =
+                vec![One, Two, Three, Four, Five, Six, Seven, Eight];
+            // act
+            let output: Vec<YCoordinate> = enums_as_u64s
+                .iter()
+                .map(|&u| {
+                    <YCoordinate as CoordinateConversion<u64>>::try_from_value(u)
+                        .expect("Valid u64 value should produce valid enum")
+                })
+                .collect();
+            // assert
+            assert_eq!(output, expected_output)
+        }
     }
 }

@@ -1,20 +1,6 @@
-use std::{collections::btree_map::Values, error};
-
 use thiserror::Error;
 
-use crate::{
-    bitmask::{
-        black_pieces,
-        generic::Bitmask,
-        pieces::{ArePieces, BitOpsForPieces},
-        white_pieces,
-    },
-    chess_state::{
-        coordinate_point,
-        coordinates::{XCoordinate, YCoordinate},
-    },
-    BlackPawns, BlackPieces, Pieces, WhitePawns, WhitePieces,
-};
+use crate::chess_state::coordinates::{XCoordinate, YCoordinate};
 
 use super::{
     board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition,
@@ -88,13 +74,12 @@ enum MoveError {
 }
 
 impl BoardBitmasks {
+    /// Calculates all available white pawn moves and returns them as a Vec of Moves
     pub(crate) fn calculate_white_pawn_moves(
         &self,
         en_passant: Option<CoordinatePosition>,
     ) -> Result<Vec<Move>, MoveError> {
         let occupied = self.all_pieces.mask;
-
-        let mut output: Vec<Move> = Vec::new();
 
         let single_step_moves = self.calculate_white_pawn_moves_single_step(occupied)?;
         let double_step_moves = self.calculate_white_pawn_moves_double_step(occupied)?;
@@ -102,6 +87,15 @@ impl BoardBitmasks {
         let capture_right_moves = self.calculate_white_pawn_moves_capture_right()?;
         let en_passant_moves = self.calculate_white_pawn_moves_en_passant(en_passant)?;
         let promotion_moves = self.calculate_white_pawn_promotions(occupied)?;
+
+        // precalc size to avoid reallocation
+        let move_count = single_step_moves.len()
+            + double_step_moves.len()
+            + capture_left_moves.len()
+            + capture_right_moves.len()
+            + en_passant_moves.len()
+            + promotion_moves.len();
+        let mut output: Vec<Move> = Vec::with_capacity(move_count);
 
         output.extend(single_step_moves);
         output.extend(double_step_moves);
@@ -113,6 +107,7 @@ impl BoardBitmasks {
         Ok(output)
     }
 
+    /// Calculates all available single step moves for white pawns and returns them as a Vec of Moves
     fn calculate_white_pawn_moves_single_step(
         &self,
         occupied: u64,
@@ -141,6 +136,7 @@ impl BoardBitmasks {
         Ok(output) // return output
     }
 
+    /// Calculates all available double-step moves for white pawns that have not moved yet, and returns a Vec of Moves
     fn calculate_white_pawn_moves_double_step(
         &self,
         occupied: u64,
@@ -173,6 +169,7 @@ impl BoardBitmasks {
         Ok(output)
     }
 
+    /// Calculates all available white pawn left-capture moves, and returns a Vec of Moves
     fn calculate_white_pawn_moves_capture_left(&self) -> Result<Vec<Move>, MoveError> {
         let mut output: Vec<Move> = Vec::with_capacity(8);
 
@@ -210,6 +207,7 @@ impl BoardBitmasks {
         Ok(output)
     }
 
+    /// Calculates all available white pawn right-capture moves, and returns a Vec of Moves
     fn calculate_white_pawn_moves_capture_right(&self) -> Result<Vec<Move>, MoveError> {
         let mut output: Vec<Move> = Vec::with_capacity(8);
 
@@ -323,6 +321,8 @@ impl BoardBitmasks {
         Ok(output)
     }
 
+    /// Calculates available promotion moves, including step-forward, left-capture, and right-capture,
+    /// and returns a move for each promotion option for each move as a Vec of Moves
     fn calculate_white_pawn_promotions(&self, occupied: u64) -> Result<Vec<Move>, MoveError> {
         let mut output: Vec<Move> = Vec::with_capacity(32);
 
@@ -650,4 +650,273 @@ fn unpack_moves<T: Fn(u64, usize) -> u64>(
         }
     }
     Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    mod white_pawns {
+        mod single_step_moves {
+            use crate::chess_state::{
+                coordinates::{XCoordinate, YCoordinate},
+                moves::{BoardBitmasks, Move},
+            };
+
+            #[test]
+            fn all_pawns_can_step_forward_when_in_their_starting_position() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
+                game_board.white_pieces.mask = 0x00_00_00_00_00_00_FF_00;
+                game_board.all_pieces.mask = 0x00_00_00_00_00_00_FF_00;
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_single_step(0)
+                    .expect("should produce 8 valid moves");
+
+                let output_bitmask = moves.iter().fold(0, |bitmask: u64, m: &Move| match m {
+                    Move::StandardMove(move_details) => {
+                        bitmask | move_details.end_position.to_bitmask()
+                    }
+                    _ => panic!("No non-standard moves here!"),
+                });
+
+                // assert
+                assert_eq!(moves.len(), 8); // there should be 8 valid moves
+                assert_eq!(output_bitmask, 0x00_00_00_00_00_FF_00_00) // all pawns should move one step forwards
+            }
+
+            #[test]
+            fn all_pawns_can_step_forward_when_in_valid_positions() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                use XCoordinate::*;
+                use YCoordinate::*;
+                // invalid pawns on E8, C7, E1
+                let invalid_pawns =
+                    (E as u64 & Eight as u64) | (C as u64 & Seven as u64) | (E as u64 & One as u64);
+                // valid pawns on A6, E6, G6, D5, B4, F4, H4, A2, C2, D2, F2, and H2
+                let valid_pawns = (A as u64 & Six as u64)
+                    | (E as u64 & Six as u64)
+                    | (G as u64 & Six as u64)
+                    | (D as u64 & Five as u64)
+                    | (B as u64 & Four as u64)
+                    | (F as u64 & Four as u64)
+                    | (H as u64 & Four as u64)
+                    | (A as u64 & Two as u64)
+                    | (C as u64 & Two as u64)
+                    | (D as u64 & Two as u64)
+                    | (F as u64 & Two as u64)
+                    | (H as u64 & Two as u64);
+                game_board.white_pawns.mask = valid_pawns | invalid_pawns;
+                let expected_output = valid_pawns << 8; // one step forwards
+                
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_single_step(0)
+                    .expect("should produce 12 valid moves for 12 valid pawns");
+
+                let output_bitmask = moves.iter().fold(0, |bitmask: u64, m: &Move| match m {
+                    Move::StandardMove(move_details) => {
+                        bitmask | move_details.end_position.to_bitmask()
+                    }
+                    _ => panic!("No non-standard moves here!"),
+                });
+
+                // assert
+                assert_eq!(moves.len(), 12); // there should be 12 valid moves for 12 valid pawns
+                assert_eq!(output_bitmask, expected_output) // all pawns should move one step forwards
+            }
+
+            #[test]
+            fn pawns_in_invalid_positions_are_ignored_when_calculating_valid_moves() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_00_FF;
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_single_step(0)
+                    .expect("should produce 0 valid moves");
+
+                // assert
+                assert_eq!(moves.len(), 0); // there should be no valid moves
+            }
+
+            #[test]
+            fn blocked_pawn_cannot_step_forwards_when_calculating_valid_moves() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_01_00;
+                let occupied: u64 = 0x00_00_00_00_00_01_00_00; // blocks one pawn
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_single_step(occupied)
+                    .expect("should produce 0 valid moves");
+
+                // assert
+                assert_eq!(moves.len(), 0); // there should be no valid moves
+            }
+
+            #[test]
+            fn other_pawns_can_step_forward_when_only_one_is_blocked() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
+                let occupied: u64 = 0x00_00_00_00_00_01_00_00; // blocks one pawn
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_single_step(occupied)
+                    .expect("should produce 7 valid moves");
+
+                let output_bitmask = moves.iter().fold(0, |bitmask: u64, m: &Move| match m {
+                    Move::StandardMove(move_details) => {
+                        bitmask | move_details.end_position.to_bitmask()
+                    }
+                    _ => panic!("No non-standard moves here!"),
+                });
+
+                // assert
+                assert_eq!(moves.len(), 7); // there should be 7 valid moves
+                assert_eq!(output_bitmask, 0x00_00_00_00_00_FE_00_00) // from FF, only FE pawns should move one step forwards
+                                                                      // since 01 pawn is blocked
+            }
+        }
+
+        mod double_step_moves {
+            use crate::chess_state::{
+                coordinates::{XCoordinate, YCoordinate},
+                moves::{BoardBitmasks, Move},
+            };
+
+            #[test]
+            fn all_pawns_can_step_forward_twice_when_in_their_starting_position() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
+                
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_double_step(0)
+                    .expect("should produce 8 valid moves");
+
+                let output_bitmask = moves.iter().fold(0, |bitmask: u64, m: &Move| match m {
+                    Move::StandardMove(move_details) => {
+                        bitmask | move_details.end_position.to_bitmask()
+                    }
+                    _ => panic!("No non-standard moves here!"),
+                });
+
+                // assert
+                assert_eq!(moves.len(), 8); // there should be 8 valid moves
+                assert_eq!(output_bitmask, 0x00_00_00_00_FF_00_00_00) // all pawns should move two steps forwards
+            }
+
+            #[test]
+            fn blocked_pawn_cannot_step_forwards_twice_when_calculating_valid_moves() {
+                // arrange
+                use XCoordinate::*;
+                use YCoordinate::*;
+                let mut game_board = BoardBitmasks::new();
+                // start both A and B pawn in starting position
+                game_board.white_pawns.mask = (A as u64 & Two as u64) | (B as u64 & Two as u64);
+                // occupy one square in front of A pawn (A3) and two squares in front of B pawn (B4)
+                let occupied: u64 = (A as u64 & Three as u64) | (B as u64 & Four as u64);
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_double_step(occupied)
+                    .expect("should produce 0 valid moves");
+
+                // assert
+                assert_eq!(moves.len(), 0); // there should be no valid moves
+            }
+
+            #[test]
+            fn other_pawns_can_step_forward_twice_when_only_one_is_blocked() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
+                let occupied: u64 = 0x00_00_00_00_00_01_00_00; // blocks one pawn
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_double_step(occupied)
+                    .expect("should produce 7 valid moves");
+
+                let output_bitmask = moves.iter().fold(0, |bitmask: u64, m: &Move| match m {
+                    Move::StandardMove(move_details) => {
+                        bitmask | move_details.end_position.to_bitmask()
+                    }
+                    _ => panic!("No non-standard moves here!"),
+                });
+
+                // assert
+                assert_eq!(moves.len(), 7); // there should be 7 valid moves
+                assert_eq!(output_bitmask, 0x00_00_00_00_FE_00_00_00) // from FF, only FE pawns should move two step forwards
+                                                                      // since 01 pawn is blocked
+            }
+
+            #[test]
+            fn pawns_in_invalid_positions_are_ignored_when_calculating_valid_moves() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                // only pawns on row 2 are valid
+                game_board.white_pawns.mask = 0xFF_FF_FF_FF_FF_FF_00_FF;
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_double_step(0)
+                    .expect("should produce 0 valid moves");
+
+                // assert
+                assert_eq!(moves.len(), 0); // there should be no valid moves
+            }
+
+            #[test]
+            fn all_pawns_can_step_forward_twice_when_in_valid_positions() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                use XCoordinate::*;
+                use YCoordinate::*;
+                // invalid pawns on E8, C7, A6, E6, G6, D5, B4, F4, H4, E1
+                let invalid_pawns = (E as u64 & Eight as u64)
+                    | (C as u64 & Seven as u64)
+                    | (E as u64 & One as u64)
+                    | (A as u64 & Six as u64)
+                    | (E as u64 & Six as u64)
+                    | (G as u64 & Six as u64)
+                    | (D as u64 & Five as u64)
+                    | (B as u64 & Four as u64)
+                    | (F as u64 & Four as u64)
+                    | (H as u64 & Four as u64);
+                // valid pawns on A2, C2, D2, F2, and H2
+                let valid_pawns = (A as u64 & Two as u64)
+                    | (C as u64 & Two as u64)
+                    | (D as u64 & Two as u64)
+                    | (F as u64 & Two as u64)
+                    | (H as u64 & Two as u64);
+                game_board.white_pawns.mask = valid_pawns | invalid_pawns;
+                let expected_output = valid_pawns << 16; // two step forwards
+
+                // act
+                let moves = game_board
+                    .calculate_white_pawn_moves_double_step(0)
+                    .expect("should produce 5 valid moves for 5 valid pawns");
+
+                let output_bitmask = moves.iter().fold(0, |bitmask: u64, m: &Move| match m {
+                    Move::StandardMove(move_details) => {
+                        bitmask | move_details.end_position.to_bitmask()
+                    }
+                    _ => panic!("No non-standard moves here!"),
+                });
+                
+                // assert
+                assert_eq!(moves.len(), 5); // there should be 5 valid moves for 5 valid pawns
+                assert_eq!(output_bitmask, expected_output) // all pawns should move two step forwards
+            }
+        }
+    }
 }

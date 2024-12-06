@@ -17,6 +17,7 @@ enum Move {
     Castle(CastleType),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct StandardMove {
     start_position: CoordinatePosition,
     end_position: CoordinatePosition,
@@ -710,7 +711,7 @@ mod tests {
                     | (H as u64 & Two as u64);
                 game_board.white_pawns.mask = valid_pawns | invalid_pawns;
                 let expected_output = valid_pawns << 8; // one step forwards
-                
+
                 // act
                 let moves = game_board
                     .calculate_white_pawn_moves_single_step(0)
@@ -796,7 +797,7 @@ mod tests {
                 // arrange
                 let mut game_board = BoardBitmasks::new();
                 game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
-                
+
                 // act
                 let moves = game_board
                     .calculate_white_pawn_moves_double_step(0)
@@ -912,10 +913,74 @@ mod tests {
                     }
                     _ => panic!("No non-standard moves here!"),
                 });
-                
+
                 // assert
                 assert_eq!(moves.len(), 5); // there should be 5 valid moves for 5 valid pawns
                 assert_eq!(output_bitmask, expected_output) // all pawns should move two step forwards
+            }
+        }
+
+        mod capture_left_moves {
+            use crate::chess_state::{
+                coordinates::{XCoordinate, YCoordinate},
+                moves::{BoardBitmasks, CoordinatePosition, Move, PieceEnum, StandardMove},
+            };
+
+            #[test]
+            fn no_captures_when_there_are_no_capture_targets() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                // white pawn starting position
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
+                // every other mask is 0
+
+                // act
+                let available_left_captures = game_board
+                    .calculate_white_pawn_moves_capture_left()
+                    .expect("should generate 0 valid moves");
+
+                // assert
+                assert_eq!(available_left_captures.len(), 0)
+            }
+
+            #[test]
+            fn identifies_valid_capture_when_caputurable_piece_to_the_left() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                let white_pawn_position = XCoordinate::E as u64 & YCoordinate::Two as u64;
+                let black_rook_position = XCoordinate::D as u64 & YCoordinate::Three as u64;
+                // update gameboard to respect this
+                game_board.white_pawns.mask = white_pawn_position;
+                game_board.white_pieces.mask = white_pawn_position;
+                game_board.black_rooks.mask = black_rook_position;
+                game_board.black_pieces.mask = black_rook_position;
+                game_board.all_pieces.mask = white_pawn_position | black_rook_position;
+
+                let expected_capture = StandardMove {
+                    start_position: CoordinatePosition::from_str("e2").expect("valid position"),
+                    end_position: CoordinatePosition::from_str("d3").expect("valid position"),
+                    piece: PieceEnum::WhitePawn,
+                    en_passant_target: None,
+                    promotion: None,
+                    takes: Some((
+                        CoordinatePosition::from_str("d3").expect("valid position"),
+                        PieceEnum::BlackRook,
+                    )),
+                };
+
+                // act
+                let capture = match game_board
+                    .calculate_white_pawn_moves_capture_left()
+                    .expect("should generate one valid move")
+                    .first()
+                    .expect("should contain one valid move")
+                {
+                    Move::StandardMove(capture) => capture.clone(),
+                    _ => panic!("only standard moves here"),
+                };
+
+                // assert
+                assert_eq!(capture, expected_capture)
             }
         }
     }

@@ -4,7 +4,7 @@ use crate::{
 };
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CoordinatePosition {
     pub x: XCoordinate,
     pub y: YCoordinate,

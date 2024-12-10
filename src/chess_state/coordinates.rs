@@ -29,7 +29,7 @@ pub enum CoordinateError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
-pub enum XCoordinate {
+pub(crate) enum XCoordinate {
     A = 0x01_01_01_01_01_01_01_01 << 7,
     B = 0x01_01_01_01_01_01_01_01 << 6,
     C = 0x01_01_01_01_01_01_01_01 << 5,
@@ -42,15 +42,15 @@ pub enum XCoordinate {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
-pub enum YCoordinate {
-    One = 0xFF << 0,
-    Two = 0xFF << 8,
-    Three = 0xFF << 16,
-    Four = 0xFF << 24,
-    Five = 0xFF << 32,
-    Six = 0xFF << 40,
-    Seven = 0xFF << 48,
-    Eight = 0xFF << 56,
+pub(crate) enum YCoordinate {
+    One =   0xFF << (0 * 8),
+    Two =   0xFF << (1 * 8),
+    Three = 0xFF << (2 * 8),
+    Four =  0xFF << (3 * 8),
+    Five =  0xFF << (4 * 8),
+    Six =   0xFF << (5 * 8),
+    Seven = 0xFF << (6 * 8),
+    Eight = 0xFF << (7 * 8),
 }
 
 pub trait CoordinateConversion<T>: Sized {

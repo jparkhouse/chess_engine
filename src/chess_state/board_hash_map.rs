@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug, Error)]
-enum BoardHashMapError {
+pub(crate) enum BoardHashMapError {
     #[error("Tried to insert a piece to filled position {0}, containing {1}, without passing the replace flag")]
     InsertedIntoFilledBoardPositionWithNoReplace(CoordinatePosition, PieceEnum),
 }
@@ -37,20 +37,20 @@ impl BoardHashMap {
         let current = self.map.get(&key);
         if replace | current.is_none() {
             self.map.insert(key, piece);
-            return Ok(());
+            Ok(())
         } else {
-            return Err(InsertedIntoFilledBoardPositionWithNoReplace(
+            Err(InsertedIntoFilledBoardPositionWithNoReplace(
                 point,
                 current.copied().expect("Was not none"),
-            ));
+            ))
         }
     }
 
     /// Returns all the positions containing a Piece and the Piece it contains as a (CoordinatePosition, PieceEnum)
     /// tuple.
-    pub(crate) fn to_iter<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (CoordinatePosition, PieceEnum)> + 'a {
+    pub(crate) fn to_iter(
+        &self,
+    ) -> impl Iterator<Item = (CoordinatePosition, PieceEnum)> + '_ {
         self.map.iter().map(|(&coord, &piece)| {
             (
                 CoordinatePosition::from_bitmask(1u64 << coord)

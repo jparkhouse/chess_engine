@@ -25,10 +25,10 @@ impl CoordinatePosition {
         let x_enum: XCoordinate = CoordinateConversion::<char>::try_from_value(x_char)?;
         let y_enum: YCoordinate = CoordinateConversion::<char>::try_from_value(y_char)?;
 
-        return Ok(Self {
+        Ok(Self {
             x: x_enum,
             y: y_enum,
-        });
+        })
     }
 
     pub(crate) fn from_bitmask(bitmask: u64) -> Result<Self, CoordinateError> {
@@ -37,22 +37,22 @@ impl CoordinatePosition {
         if has_one_bit_set(bitmask) {
             let x_enum: XCoordinate = CoordinateConversion::<u64>::try_from_value(bitmask)?;
             let y_enum: YCoordinate = CoordinateConversion::<u64>::try_from_value(bitmask)?;
-            return Ok(Self {
+            Ok(Self {
                 x: x_enum,
                 y: y_enum,
-            });
+            })
         } else if bitmask != 0 {
-            return Err(XYCoordinatesFromMultiBitBitmask(bitmask));
+            Err(XYCoordinatesFromMultiBitBitmask(bitmask))
         } else {
-            return Err(XYCoordinatesFromEmptyBitmask(bitmask));
+            Err(XYCoordinatesFromEmptyBitmask(bitmask))
         }
     }
 
-    pub(crate) fn to_bitmask(&self) -> u64 {
+    pub(crate) fn to_bitmask(self) -> u64 {
         let all_x = CoordinateConversion::<u64>::to_value(self.x);
         let all_y = CoordinateConversion::<u64>::to_value(self.y);
         // the only intersecting point of x and y is the pair (x, y)
-        return all_x & all_y;
+        all_x & all_y
     }
 }
 

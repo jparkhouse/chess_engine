@@ -1,16 +1,10 @@
 use std::ops::BitOr;
 
-trait ChessMoves {
+pub(crate) trait ChessMoves {
     fn shift_move(self, direction: ChessMove) -> Self;
 }
 
-trait ChessFlip {
-    fn flip_horizontal(self) -> Self;
-    fn flip_vertical(self) -> Self;
-    fn flip(self) -> Self;
-}
-
-enum ChessMove {
+pub(crate) enum ChessMove {
     // cardinal directions
     Up,
     UpRight,
@@ -62,39 +56,12 @@ impl ChessMoves for u64 {
     }
 }
 
-impl ChessFlip for u64 {
-    fn flip_horizontal(self) -> Self {
-        fn flip_byte(byte: u8) -> u8 {
-            let mut new_byte: u8 = 0;
-            if byte > 0 {
-                (0..8).for_each(|bit_no| {
-                    let bit = byte & (1 << (7 - bit_no));
-                    if bit > 0 {
-                        new_byte |= 1 << bit_no;
-                    }
-                });
-            }
-            new_byte
-        }
-
-        let new_bytes = self.to_be_bytes().map(|byte| flip_byte(byte));
-        u64::from_be_bytes(new_bytes)
-    }
-
-    fn flip_vertical(self) -> Self {
-        self.swap_bytes()
-    }
-
-    fn flip(self) -> Self {
-        self.flip_horizontal().flip_vertical()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     mod chess_move_for_u64 {
-        use crate::chess_state::moves::{
-            moves::ChessMove::*, moves::ChessMoves, XCoordinate::*, YCoordinate::*,
+        use crate::chess_state::{
+            coordinates::{XCoordinate::*, YCoordinate::*},
+            moves::chess_move::{ChessMove::*, ChessMoves},
         };
 
         #[test]
@@ -269,43 +236,6 @@ mod tests {
             let expected_output = (C as u64) & (Six as u64);
             // act
             let output = start.shift_move(KnightEleven);
-            // assert
-            assert_eq!(output, expected_output)
-        }
-    }
-
-    mod chess_flip_for_u64 {
-        use crate::chess_state::moves::{moves::ChessFlip, XCoordinate::*, YCoordinate::*};
-
-        #[test]
-        fn bits_swap_correctly_when_swapped_horizontally() {
-            // arrange
-            let test_input = ((A as u64) & (One as u64)) | ((B as u64) & (One as u64));
-            let expected_output = ((G as u64) & (One as u64)) | ((H as u64) & (One as u64));
-
-            // act
-            let output = test_input.flip_horizontal();
-
-            // assert
-            assert_eq!(output, expected_output)
-        }
-
-        #[test]
-        fn bits_swap_correctly_when_board_flipped() {
-            // arrange
-            let test_input = ((A as u64) & (One as u64))
-                | ((B as u64) & (One as u64))
-                | ((C as u64) & (Two as u64))
-                | ((D as u64) & (Three as u64));
-            // in respective order
-            let expected_output = ((H as u64) & (Eight as u64))
-            | ((G as u64) & (Eight as u64))
-            | ((F as u64) & (Seven as u64))
-            | ((E as u64) & (Six as u64));;
-
-            // act
-            let output = test_input.flip();
-
             // assert
             assert_eq!(output, expected_output)
         }

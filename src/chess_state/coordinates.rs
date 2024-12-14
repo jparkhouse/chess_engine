@@ -37,14 +37,14 @@ pub(crate) enum XCoordinate {
     E = 0x01_01_01_01_01_01_01_01 << 3,
     F = 0x01_01_01_01_01_01_01_01 << 2,
     G = 0x01_01_01_01_01_01_01_01 << 1,
-    H = 0x01_01_01_01_01_01_01_01 << 0,
+    H = 0x01_01_01_01_01_01_01_01,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
 pub(crate) enum YCoordinate {
-    One =   0xFF << (0 * 8),
-    Two =   0xFF << (1 * 8),
+    One =   0xFF,
+    Two =   0xFF << 8,
     Three = 0xFF << (2 * 8),
     Four =  0xFF << (3 * 8),
     Five =  0xFF << (4 * 8),
@@ -147,7 +147,7 @@ impl CoordinateConversion<u64> for XCoordinate {
         if counter > 1 {
             return Err(CoordinateError::XCoordinateFromInvalidBitmask(value));
         }
-        return Ok(output);
+        Ok(output)
     }
 
     fn to_value(self) -> u64 {
@@ -171,7 +171,7 @@ impl CoordinateConversion<u64> for YCoordinate {
         if counter > 1 {
             return Err(CoordinateError::YCoordinateFromInvalidBitmask(value));
         }
-        return Ok(output);
+        Ok(output)
     }
 
     fn to_value(self) -> u64 {

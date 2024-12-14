@@ -25,7 +25,7 @@ impl<T> Bitmask<T> {
     }
 
     pub(crate) fn to_u64(&self) -> u64 {
-        self.mask.clone()
+        self.mask
     }
 }
 
@@ -87,14 +87,14 @@ impl<T> Mul<[f64; 64]> for Bitmask<T> {
     type Output = [f64; 64];
 
     fn mul(self, rhs: [f64; 64]) -> Self::Output {
-        let mut _bitmask = self.mask.clone();
+        let mut bitmask = self.mask;
         let mut output: [f64; 64] = [0 as f64; 64]; 
-        while _bitmask > 0 { // at least one bit set
-            let index = _bitmask.trailing_zeros() as usize; // find that bit
-            output[index] = rhs[index].clone(); // copy the value from rhs into output
-            _bitmask &= !(1 << index); // set that bit to 0
+        while bitmask > 0 { // at least one bit set
+            let index = bitmask.trailing_zeros() as usize; // find that bit
+            output[index] = rhs[index]; // copy the value from rhs into output
+            bitmask &= !(1 << index); // set that bit to 0
         }
-        return output
+        output
     }
 }
 
@@ -102,6 +102,6 @@ impl<T> Shl<usize> for Bitmask<T> {
     type Output = Bitmask<T>;
 
     fn shl(self, rhs: usize) -> Self::Output {
-        return Bitmask::<T>::from_u64(self.mask << rhs)
+        Bitmask::<T>::from_u64(self.mask << rhs)
     }
 }

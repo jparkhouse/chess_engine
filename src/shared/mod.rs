@@ -39,7 +39,7 @@ pub(crate) fn has_one_bit_set(bitmask: u64) -> bool {
 /// assert_eq!(single_bit_bitmask_to_u8(0b00001001), 0);
 /// ```
 pub(crate) fn single_bit_bitmask_to_u8(bitmask: &u64) -> u8 {
-    return bitmask.trailing_zeros() as u8;
+    bitmask.trailing_zeros() as u8
 }
 
 /// Takes a bitflag and returns a `Vec<u8>` containing
@@ -61,12 +61,13 @@ pub(crate) fn single_bit_bitmask_to_u8(bitmask: &u64) -> u8 {
 /// assert_eq!(multi_bitmask_to_u8s(0b00000000), vec![]);
 /// ```
 pub(crate) fn multi_bitmask_to_u8s(bitmask: &u64) -> Vec<u8> {
-    let mut bitmask = bitmask.clone();
+    // take a copy for deconstruction
+    let mut bitmask = *bitmask;
     let mut output: Vec<u8> = Vec::new();
     while bitmask != 0 {
         output.push(bitmask.trailing_zeros() as u8);
         bitmask &= !(1 << output.last().expect("Contains at least one value"))
     }
-    return output
+    output
 }
 

@@ -4,7 +4,7 @@ use crate::{
     WhitePawns, WhitePieces, WhiteQueens, WhiteRooks,
 };
 
-use super::board_hash_map::BoardHashMap;
+use super::{board_hash_map::BoardHashMap, coordinates::{YCoordinate, XCoordinate}};
 
 pub(crate) struct BoardBitmasks {
     pub all_pieces: Bitmask<Pieces>,
@@ -25,6 +25,7 @@ pub(crate) struct BoardBitmasks {
 }
 
 impl BoardBitmasks {
+    /// Initialises a new, empty, chess board and the relevant bitmasks
     pub(crate) fn new() -> Self {
         Self {
             all_pieces: 0.into(),
@@ -45,6 +46,30 @@ impl BoardBitmasks {
         }
     }
 
+    /// Initialises a chess board in the starting position
+    pub(crate) fn default() -> Self {
+        use XCoordinate::*;
+        use YCoordinate::*;
+        Self {
+            all_pieces:     (One as u64 | Two as u64 | Seven as u64 | Eight as u64).into(),
+            white_pieces:   (One as u64 | Two as u64).into(),
+            white_pawns:    (Two as u64).into(),
+            white_knights:  ((B as u64 & One as u64) | (G as u64 & One as u64)).into(),
+            white_bishops:  ((C as u64 & One as u64) | (F as u64 & One as u64)).into(),
+            white_rooks:    ((A as u64 & One as u64) | (H as u64 & One as u64)).into(),
+            white_queens:   (D as u64 & One as u64).into(),
+            white_kings:    (E as u64 & One as u64).into(),
+            black_pieces:   (Seven as u64 | Eight as u64).into(),
+            black_pawns:    (Seven as u64).into(),
+            black_knights:  ((B as u64 & Eight as u64) | (G as u64 & Eight as u64)).into(),
+            black_bishops:  ((C as u64 & Eight as u64) | (F as u64 & Eight as u64)).into(),
+            black_rooks:    ((A as u64 & Eight as u64) | (H as u64 & Eight as u64)).into(),
+            black_queens:   (D as u64 & Eight as u64).into(),
+            black_kings:    (E as u64 & Eight as u64).into(),
+        }
+    }
+
+    /// Creates a BoardBitmasks object from a BoardHashMap, going from location-to-piece to piece-to-location
     pub(crate) fn from_board_hash_map(map: &BoardHashMap) -> Self {
         use crate::PieceEnum::*;
 
@@ -52,73 +77,73 @@ impl BoardBitmasks {
         map.to_iter().for_each(|(coord, piece)| match piece {
             WhitePawn => {
                 let bitmask: Bitmask<WhitePawns> = Bitmask::from_u64(coord.to_bitmask());
-                output.white_pawns |= bitmask.clone();
+                output.white_pawns |= bitmask;
                 output.white_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             WhiteKnight => {
                 let bitmask: Bitmask<WhiteKnights> = Bitmask::from_u64(coord.to_bitmask());
-                output.white_knights |= bitmask.clone();
+                output.white_knights |= bitmask;
                 output.white_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             WhiteBishop => {
                 let bitmask: Bitmask<WhiteBishops> = Bitmask::from_u64(coord.to_bitmask());
-                output.white_bishops |= bitmask.clone();
+                output.white_bishops |= bitmask;
                 output.white_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             WhiteRook => {
                 let bitmask: Bitmask<WhiteRooks> = Bitmask::from_u64(coord.to_bitmask());
-                output.white_rooks |= bitmask.clone();
+                output.white_rooks |= bitmask;
                 output.white_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             WhiteQueen => {
                 let bitmask: Bitmask<WhiteQueens> = Bitmask::from_u64(coord.to_bitmask());
-                output.white_queens |= bitmask.clone();
+                output.white_queens |= bitmask;
                 output.white_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             WhiteKing => {
                 let bitmask: Bitmask<WhiteKings> = Bitmask::from_u64(coord.to_bitmask());
-                output.white_kings |= bitmask.clone();
+                output.white_kings |= bitmask;
                 output.white_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             BlackPawn => {
                 let bitmask: Bitmask<BlackPawns> = Bitmask::from_u64(coord.to_bitmask());
-                output.black_pawns |= bitmask.clone();
+                output.black_pawns |= bitmask;
                 output.black_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             BlackKnight => {
                 let bitmask: Bitmask<BlackKnights> = Bitmask::from_u64(coord.to_bitmask());
-                output.black_knights |= bitmask.clone();
+                output.black_knights |= bitmask;
                 output.black_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             BlackBishop => {
                 let bitmask: Bitmask<BlackBishops> = Bitmask::from_u64(coord.to_bitmask());
-                output.black_bishops |= bitmask.clone();
+                output.black_bishops |= bitmask;
                 output.black_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             BlackRook => {
                 let bitmask: Bitmask<BlackRooks> = Bitmask::from_u64(coord.to_bitmask());
-                output.black_rooks |= bitmask.clone();
+                output.black_rooks |= bitmask;
                 output.black_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             BlackQueen => {
                 let bitmask: Bitmask<BlackQueens> = Bitmask::from_u64(coord.to_bitmask());
-                output.black_queens |= bitmask.clone();
+                output.black_queens |= bitmask;
                 output.black_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }
             BlackKing => {
                 let bitmask: Bitmask<BlackKings> = Bitmask::from_u64(coord.to_bitmask());
-                output.black_kings |= bitmask.clone();
+                output.black_kings |= bitmask;
                 output.black_pieces |= bitmask.into();
                 output.all_pieces |= bitmask.into();
             }

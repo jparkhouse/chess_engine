@@ -66,7 +66,7 @@ impl BoardBitmasks {
             let captures = valid_moves & opponent_pieces;
             packed_moves.push(TempMove {
                 moves: valid_moves,
-                captures: captures,
+                captures,
             });
         }
 
@@ -95,7 +95,7 @@ impl BoardBitmasks {
                     piece: piece_type,
                     en_passant_target: None,
                     promotion: None,
-                    takes: takes,
+                    takes,
                 });
 
                 output.push(next_move);

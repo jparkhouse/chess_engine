@@ -20,12 +20,12 @@ impl StandardMove {
         takes: Option<(CoordinatePosition, PieceEnum)>,
     ) -> Self {
         Self {
-            start_position: start_position,
-            end_position: end_position,
-            promotion: promotion,
-            takes: takes,
-            piece: piece,
-            en_passant_target: en_passant_target,
+            start_position,
+            end_position,
+            promotion,
+            takes,
+            piece,
+            en_passant_target,
         }
     }
 

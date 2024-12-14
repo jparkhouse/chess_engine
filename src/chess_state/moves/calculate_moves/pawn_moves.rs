@@ -102,14 +102,18 @@ impl BoardBitmasks {
     fn calculate_white_pawn_moves_capture_left(&self) -> Result<Vec<Move>, MoveError> {
         let mut output: Vec<Move> = Vec::with_capacity(8);
 
-        // valid from rows 2-6 and only for pawns that can move left (ie not in column A)
+        // not valid for:
+        // pawns in invalid positions (Row One)
+        // pawns that need to be handled as promotions (Row Seven)
+        // pawns that cannot move forward (Row Eight)
+        // pawns that cannot move left (in column A)
         const VALID_SQUARES_NOT_IN_COLUMN_A: u64 = !(YCoordinate::One as u64
             | YCoordinate::Seven as u64
             | YCoordinate::Eight as u64
             | XCoordinate::A as u64);
 
         let valid_pawns = self.white_pawns.mask & VALID_SQUARES_NOT_IN_COLUMN_A;
-        // valid moves move up and left one, and must capture a black piece
+        // valid moves move UpLeft, and must capture a black piece
         let mut valid_captures = valid_pawns.shift_move(UpLeft) & self.black_pieces.mask;
 
         while valid_captures != 0 {
@@ -139,14 +143,18 @@ impl BoardBitmasks {
     fn calculate_white_pawn_moves_capture_right(&self) -> Result<Vec<Move>, MoveError> {
         let mut output: Vec<Move> = Vec::with_capacity(8);
 
-        // valid from rows 2-6 and only for pawns that can move right (ie not in column H)
+        // not valid for:
+        // pawns in invalid positions (Row One)
+        // pawns that need to be handled as promotions (Row Seven)
+        // pawns that cannot move forward (Row Eight)
+        // pawns that cannot move left (in column H)
         const VALID_SQUARES_NOT_IN_COLUMN_H: u64 = !(YCoordinate::One as u64
             | YCoordinate::Seven as u64
             | YCoordinate::Eight as u64
             | XCoordinate::H as u64);
 
         let valid_pawns = self.white_pawns.mask & VALID_SQUARES_NOT_IN_COLUMN_H;
-        // valid moves move up and left one, and must capture a black piece
+        // valid moves move UpRight, and must capture a black piece
         let mut valid_captures = valid_pawns.shift_move(UpRight) & self.black_pieces.mask;
 
         while valid_captures != 0 {

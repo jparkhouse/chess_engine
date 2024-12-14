@@ -1,4 +1,3 @@
-use std::ops::BitOr;
 
 pub(crate) trait ChessMoves {
     fn shift_move(self, direction: ChessMove) -> Self;

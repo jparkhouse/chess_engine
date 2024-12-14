@@ -34,7 +34,7 @@ fn unpack_moves<T: Fn(u64, usize) -> u64>(
                 piece: piece_type,
                 en_passant_target: None,
                 promotion: None,
-                takes: takes,
+                takes,
             });
 
             output.push(next_move);

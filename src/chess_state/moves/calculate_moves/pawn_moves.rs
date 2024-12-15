@@ -726,5 +726,71 @@ mod tests {
                 assert_eq!(capture.clone(), expected_capture)
             }
         }
+
+        mod capture_right_moves {
+            use crate::chess_state::{
+                board_bitmask::BoardBitmasks,
+                chess_pieces::PieceEnum,
+                coordinate_point::CoordinatePosition,
+                coordinates::{XCoordinate, YCoordinate},
+                moves::{shared::Move, standard_move::StandardMove},
+            };
+
+            #[test]
+            fn no_captures_when_there_are_no_capture_targets() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                // white pawn starting position
+                game_board.white_pawns.mask = 0x00_00_00_00_00_00_FF_00;
+                // every other mask is 0
+
+                // act
+                let available_left_captures = game_board
+                    .calculate_white_pawn_moves_capture_right()
+                    .expect("should generate 0 valid moves");
+
+                // assert
+                assert_eq!(available_left_captures.len(), 0)
+            }
+
+            #[test]
+            fn identifies_valid_capture_when_caputurable_piece_to_the_right() {
+                // arrange
+                let mut game_board = BoardBitmasks::new();
+                let white_pawn_position = XCoordinate::E as u64 & YCoordinate::Two as u64;
+                let black_rook_position = XCoordinate::F as u64 & YCoordinate::Three as u64;
+                // update gameboard to respect this
+                game_board.white_pawns.mask = white_pawn_position;
+                game_board.white_pieces.mask = white_pawn_position;
+                game_board.black_rooks.mask = black_rook_position;
+                game_board.black_pieces.mask = black_rook_position;
+                game_board.all_pieces.mask = white_pawn_position | black_rook_position;
+
+                let expected_capture = StandardMove {
+                    start_position: CoordinatePosition::from_str("e2").expect("valid position"),
+                    end_position: CoordinatePosition::from_str("f3").expect("valid position"),
+                    piece: PieceEnum::WhitePawn,
+                    en_passant_target: None,
+                    promotion: None,
+                    takes: Some((
+                        CoordinatePosition::from_str("f3").expect("valid position"),
+                        PieceEnum::BlackRook,
+                    )),
+                };
+
+                // act
+                let all_moves = game_board
+                    .calculate_white_pawn_moves_capture_right()
+                    .expect("should generate one valid move");
+                let first_move = all_moves.first().expect("should contain one valid move");
+                let capture = match first_move {
+                    Move::StandardMove(capture) => capture,
+                    _ => panic!("only standard moves here"),
+                };
+
+                // assert
+                assert_eq!(capture.clone(), expected_capture)
+            }
+        }
     }
 }

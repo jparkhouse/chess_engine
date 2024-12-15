@@ -8,7 +8,7 @@ use crate::chess_state::{
             ChessMove::{Down, DownLeft, DownRight, Up, UpLeft, UpRight},
             ChessMoves,
         },
-        shared::{Move, MoveError},
+        shared::{Check, Move, MoveError},
         standard_move::StandardMove,
     },
 };
@@ -132,6 +132,7 @@ impl BoardBitmasks {
                     coord_next_move,
                     self.get_piece_type_for_capture(coord_next_move)?,
                 )),
+                check: Check::None
             }));
 
             valid_captures &= !next_move; // remove that move
@@ -173,6 +174,7 @@ impl BoardBitmasks {
                     coord_next_move,
                     self.get_piece_type_for_capture(coord_next_move)?,
                 )),
+                check: Check::None
             }));
 
             valid_captures &= !next_move; // remove that move
@@ -251,6 +253,7 @@ impl BoardBitmasks {
                     CoordinatePosition::from_bitmask(target_mask.shift_move(Down))?,
                     PieceEnum::BlackPawn,
                 )),
+                check: Check::None
             }));
             valid_pawns &= !starting_position; // remove pawn
         }
@@ -293,6 +296,7 @@ impl BoardBitmasks {
                     en_passant_target: None,
                     promotion: Some(piece),
                     takes: None,
+                    check: Check::None
                 }))
             }
 
@@ -322,6 +326,7 @@ impl BoardBitmasks {
                     en_passant_target: None,
                     promotion: Some(piece),
                     takes: Some((coord_next_move, captured_piece)),
+                    check: Check::None
                 }))
             }
 
@@ -351,6 +356,7 @@ impl BoardBitmasks {
                     en_passant_target: None,
                     promotion: Some(piece),
                     takes: Some((coord_next_move, captured_piece)),
+                    check: Check::None
                 }))
             }
 
@@ -372,6 +378,7 @@ fn create_simple_white_pawn_move(
         None,
         None,
         None,
+        Check::None
     );
     Ok(new_move)
 }
@@ -388,6 +395,7 @@ fn create_double_white_pawn_move(
         Some(CoordinatePosition::from_bitmask(ending_position.shift_move(Down))?),
         None,
         None,
+        Check::None
     );
     Ok(new_move)
 }
@@ -667,7 +675,7 @@ mod tests {
                 chess_pieces::PieceEnum,
                 coordinate_point::CoordinatePosition,
                 coordinates::{XCoordinate, YCoordinate},
-                moves::{shared::Move, standard_move::StandardMove},
+                moves::{shared::{Check, Move}, standard_move::StandardMove},
             };
 
             #[test]
@@ -710,6 +718,7 @@ mod tests {
                         CoordinatePosition::from_str("d3").expect("valid position"),
                         PieceEnum::BlackRook,
                     )),
+                    check: Check::None
                 };
 
                 // act
@@ -733,7 +742,7 @@ mod tests {
                 chess_pieces::PieceEnum,
                 coordinate_point::CoordinatePosition,
                 coordinates::{XCoordinate, YCoordinate},
-                moves::{shared::Move, standard_move::StandardMove},
+                moves::{shared::{Check, Move}, standard_move::StandardMove},
             };
 
             #[test]
@@ -776,6 +785,7 @@ mod tests {
                         CoordinatePosition::from_str("f3").expect("valid position"),
                         PieceEnum::BlackRook,
                     )),
+                    check: Check::None
                 };
 
                 // act

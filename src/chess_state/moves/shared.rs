@@ -11,6 +11,13 @@ pub(crate) enum CastleType {
     LongCastle,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum Check {
+    None,
+    Check,
+    Checkmate,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Move {
     StandardMove(StandardMove),

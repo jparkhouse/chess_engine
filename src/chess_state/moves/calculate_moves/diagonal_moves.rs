@@ -4,7 +4,7 @@ use crate::chess_state::{
     coordinate_point::CoordinatePosition,
     coordinates::{XCoordinate, YCoordinate},
     moves::{
-        shared::{Move, MoveError},
+        shared::{Check, Move, MoveError},
         standard_move::StandardMove,
     },
 };
@@ -96,6 +96,7 @@ impl BoardBitmasks {
                     en_passant_target: None,
                     promotion: None,
                     takes,
+                    check: Check::None
                 });
 
                 output.push(next_move);

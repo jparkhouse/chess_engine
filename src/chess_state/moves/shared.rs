@@ -2,8 +2,10 @@ use thiserror::Error;
 
 use crate::chess_state::{
     board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition,
-    coordinates::CoordinateError, moves::standard_move::StandardMove,
+    coordinates::{CoordinateError, YCoordinate, XCoordinate}, moves::standard_move::StandardMove,
 };
+
+use super::chess_move::ChessMove;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum CastleType {
@@ -112,5 +114,29 @@ impl BoardBitmasks {
             PieceEnum::BlackQueen => self.black_queens.mask,
             PieceEnum::BlackKing => self.black_kings.mask,
         }
+    }
+}
+
+fn get_valid_space(move_type: ChessMove) -> u64 {
+    use XCoordinate::*;
+    use YCoordinate::*;
+    match move_type {
+        ChessMove::Up => !(Eight as u64),
+        ChessMove::UpRight => !(Eight as u64 | H as u64),
+        ChessMove::Right => !(H as u64),
+        ChessMove::DownRight => !(One as u64 | H as u64),
+        ChessMove::Down => !(One as u64),
+        ChessMove::DownLeft => !(One as u64 | A as u64),
+        ChessMove::Left => !(A as u64),
+        ChessMove::UpLeft => !(A as u64 | Eight as u64),
+        // I have no idea if these are correct
+        ChessMove::KnightOne => !(H as u64 | Seven as u64 | Eight as u64),
+        ChessMove::KnightTwo => !(G as u64 | H as u64 | Eight as u64),
+        ChessMove::KnightFour => !(G as u64 | H as u64 | One as u64),
+        ChessMove::KnightFive => !(H as u64 | Seven as u64 | Eight as u64),
+        ChessMove::KnightSeven => !(A as u64 | One as u64 | Two as u64),
+        ChessMove::KnightEight => !(A as u64 | B as u64 | One as u64),
+        ChessMove::KnightTen => !(A as u64 | B as u64 | Seven as u64),
+        ChessMove::KnightEleven => !(A as u64 | Seven as u64 | Eight as u64),
     }
 }

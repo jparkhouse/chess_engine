@@ -4,7 +4,7 @@ pub(crate) trait ChessMoves {
 }
 
 pub(crate) enum ChessMove {
-    // cardinal directions
+    // single step king moves
     Up,
     UpRight,
     Right,
@@ -15,16 +15,21 @@ pub(crate) enum ChessMove {
     UpLeft,
 
     // knight moves based on clock
+    // up, up, right
     KnightOne,
+    // up, right, right
     KnightTwo,
-
+    // down, right, right
     KnightFour,
+    // down, down, right
     KnightFive,
-
+    // down, down, left
     KnightSeven,
+    // down, left, left
     KnightEight,
-
+    // up, left, left
     KnightTen,
+    // up, up, left
     KnightEleven,
 }
 

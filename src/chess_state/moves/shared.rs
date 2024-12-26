@@ -1,8 +1,11 @@
 use thiserror::Error;
 
 use crate::chess_state::{
-    board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition,
-    coordinates::{CoordinateError, YCoordinate, XCoordinate}, moves::standard_move::StandardMove,
+    board_bitmask::BoardBitmasks,
+    chess_pieces::PieceEnum,
+    coordinate_point::CoordinatePosition,
+    coordinates::{CoordinateError, XCoordinate, YCoordinate},
+    moves::standard_move::StandardMove,
 };
 
 use super::chess_move::ChessMove;
@@ -129,14 +132,22 @@ fn get_valid_space(move_type: ChessMove) -> u64 {
         ChessMove::DownLeft => !(One as u64 | A as u64),
         ChessMove::Left => !(A as u64),
         ChessMove::UpLeft => !(A as u64 | Eight as u64),
-        // I have no idea if these are correct
-        ChessMove::KnightOne => !(H as u64 | Seven as u64 | Eight as u64),
-        ChessMove::KnightTwo => !(G as u64 | H as u64 | Eight as u64),
-        ChessMove::KnightFour => !(G as u64 | H as u64 | One as u64),
-        ChessMove::KnightFive => !(H as u64 | Seven as u64 | Eight as u64),
-        ChessMove::KnightSeven => !(A as u64 | One as u64 | Two as u64),
-        ChessMove::KnightEight => !(A as u64 | B as u64 | One as u64),
-        ChessMove::KnightTen => !(A as u64 | B as u64 | Seven as u64),
-        ChessMove::KnightEleven => !(A as u64 | Seven as u64 | Eight as u64),
+        // These ones are more complicated
+        // up, up, right
+        ChessMove::KnightOne => !(Seven as u64 | Eight as u64 | H as u64),
+        // up, right, right
+        ChessMove::KnightTwo => !(Eight as u64 | G as u64 | H as u64),
+        // down, right, right
+        ChessMove::KnightFour => !(One as u64 | G as u64 | H as u64),
+        // down, down, right
+        ChessMove::KnightFive => !(One as u64 | Two as u64 | H as u64),
+        // down, down, left
+        ChessMove::KnightSeven => !(One as u64 | Two as u64 | A as u64),
+        // down, left, left
+        ChessMove::KnightEight => !(One as u64 | A as u64 | B as u64),
+        // up, left, left
+        ChessMove::KnightTen => !(Eight as u64 | A as u64 | B as u64),
+        // up, up, left
+        ChessMove::KnightEleven => !(Seven as u64 | Eight as u64 | A as u64),
     }
 }

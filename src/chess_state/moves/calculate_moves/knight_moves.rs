@@ -30,6 +30,6 @@ fn helper_calculate_knight_move(knights: u64, captures: u64, occupied: u64, dire
         ChessMove::KnightEight => todo!(),
         ChessMove::KnightTen => todo!(),
         ChessMove::KnightEleven => todo!(),
-        _ => {}
-    }
+        _ => {todo!()}
+    };
 }

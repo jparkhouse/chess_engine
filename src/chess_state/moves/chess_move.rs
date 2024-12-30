@@ -1,8 +1,8 @@
-
 pub(crate) trait ChessMoves {
     fn shift_move(self, direction: ChessMove) -> Self;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum ChessMove {
     // single step king moves
     Up,
@@ -37,25 +37,59 @@ impl ChessMoves for u64 {
     #[inline]
     fn shift_move(self, direction: ChessMove) -> Self {
         use ChessMove::*;
+        // to help with safety, first filter out any pieces that cannot make that move
+        let valid_pieces = self & crate::chess_state::moves::shared::get_valid_space(direction);
         match direction {
-            Up => self << 8,
-            Right => self >> 1,
-            Down => self >> 8,
-            Left => self << 1,
+            Up => valid_pieces << 8,
+            Right => valid_pieces >> 1,
+            Down => valid_pieces >> 8,
+            Left => valid_pieces << 1,
 
-            UpRight => self.shift_move(Up).shift_move(Right),
-            DownRight => self.shift_move(Down).shift_move(Right),
-            DownLeft => self.shift_move(Down).shift_move(Left),
-            UpLeft => self.shift_move(Up).shift_move(Left),
+            UpRight => valid_pieces
+                .shift_move(Up)
+                .shift_move(Right),
+            DownRight => valid_pieces
+                .shift_move(Down)
+                .shift_move(Right),
+            DownLeft => valid_pieces
+                .shift_move(Down)
+                .shift_move(Left),
+            UpLeft => valid_pieces
+                .shift_move(Up)
+                .shift_move(Left),
 
-            KnightOne => self.shift_move(Up).shift_move(Up).shift_move(Right),
-            KnightTwo => self.shift_move(Right).shift_move(Right).shift_move(Up),
-            KnightFour => self.shift_move(Right).shift_move(Right).shift_move(Down),
-            KnightFive => self.shift_move(Down).shift_move(Down).shift_move(Right),
-            KnightSeven => self.shift_move(Down).shift_move(Down).shift_move(Left),
-            KnightEight => self.shift_move(Left).shift_move(Left).shift_move(Down),
-            KnightTen => self.shift_move(Left).shift_move(Left).shift_move(Up),
-            KnightEleven => self.shift_move(Up).shift_move(Up).shift_move(Left),
+            KnightOne => valid_pieces
+                .shift_move(Up)
+                .shift_move(Up)
+                .shift_move(Right),
+            KnightTwo => valid_pieces
+                .shift_move(Up)
+                .shift_move(Right)
+                .shift_move(Right),
+            KnightFour => valid_pieces
+                .shift_move(Down)
+                .shift_move(Right)
+                .shift_move(Right),
+            KnightFive => valid_pieces
+                .shift_move(Down)
+                .shift_move(Down)
+                .shift_move(Right),
+            KnightSeven => valid_pieces
+                .shift_move(Down)
+                .shift_move(Down)
+                .shift_move(Left),
+            KnightEight => valid_pieces
+                .shift_move(Down)
+                .shift_move(Left)
+                .shift_move(Left),
+            KnightTen => valid_pieces
+                .shift_move(Up)
+                .shift_move(Left)
+                .shift_move(Left),
+            KnightEleven => valid_pieces
+                .shift_move(Up)
+                .shift_move(Up)
+                .shift_move(Left),
         }
     }
 }
@@ -63,6 +97,7 @@ impl ChessMoves for u64 {
 #[cfg(test)]
 mod tests {
     mod chess_move_for_u64 {
+        // TODO: add validation on excluded pieces
         use crate::chess_state::{
             coordinates::{XCoordinate::*, YCoordinate::*},
             moves::chess_move::{ChessMove::*, ChessMoves},

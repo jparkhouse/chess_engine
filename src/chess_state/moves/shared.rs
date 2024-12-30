@@ -120,7 +120,7 @@ impl BoardBitmasks {
     }
 }
 
-fn get_valid_space(move_type: ChessMove) -> u64 {
+pub(crate) fn get_valid_space(move_type: ChessMove) -> u64 {
     use XCoordinate::*;
     use YCoordinate::*;
     match move_type {

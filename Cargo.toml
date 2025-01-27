@@ -8,4 +8,7 @@ name = "chess-engine"
 path = "src/main.rs"
 
 [dependencies]
-thiserror = "1.0"
+chrono = "0.4.39"
+env_logger = "0.11.6"
+log = "0.4.22"
+thiserror = "2.0.9"

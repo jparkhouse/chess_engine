@@ -1,6 +1,6 @@
 use crate::chess_state::{board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition, moves::shared::{Move, MoveError}, moves::standard_move::StandardMove};
 
-use super::shared::Check;
+use super::shared::CheckType;
 
 struct TempMove {
     moves: u64,
@@ -37,7 +37,7 @@ fn unpack_moves<T: Fn(u64, usize) -> u64>(
                 en_passant_target: None,
                 promotion: None,
                 takes,
-                check: Check::None
+                check: CheckType::None
             });
 
             output.push(next_move);

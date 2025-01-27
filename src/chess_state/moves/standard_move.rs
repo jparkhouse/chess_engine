@@ -1,5 +1,5 @@
 use crate::chess_state::{
-    chess_pieces::PieceEnum, coordinate_point::CoordinatePosition, moves::shared::Check,
+    chess_pieces::PieceEnum, coordinate_point::CoordinatePosition, moves::shared::CheckType,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -10,7 +10,7 @@ pub(crate) struct StandardMove {
     pub(crate) en_passant_target: Option<CoordinatePosition>,
     pub(crate) promotion: Option<PieceEnum>,
     pub(crate) takes: Option<(CoordinatePosition, PieceEnum)>,
-    pub(crate) check: Check,
+    pub(crate) check: CheckType,
 }
 
 impl StandardMove {
@@ -21,7 +21,7 @@ impl StandardMove {
         en_passant_target: Option<CoordinatePosition>,
         promotion: Option<PieceEnum>,
         takes: Option<(CoordinatePosition, PieceEnum)>,
-        check: Check,
+        check: CheckType,
     ) -> Self {
         Self {
             start_position,
@@ -44,9 +44,9 @@ impl StandardMove {
             None => "".to_string(),
         };
         let check = match self.check {
-            Check::None => "",
-            Check::Check => "+",
-            Check::Checkmate => "#",
+            CheckType::None => "",
+            CheckType::Check => "+",
+            CheckType::Checkmate => "#",
         };
         format!(
             "{}{}{}{}{}",
@@ -58,7 +58,7 @@ impl StandardMove {
 #[cfg(test)]
 mod tests {
 
-    use crate::chess_state::moves::shared::Check;
+    use crate::chess_state::moves::shared::CheckType;
 
     use super::{CoordinatePosition, PieceEnum, StandardMove};
 
@@ -72,7 +72,7 @@ mod tests {
             en_passant_target: None,
             promotion: None,
             takes: None,
-            check: Check::None,
+            check: CheckType::None,
         };
 
         // act
@@ -91,8 +91,11 @@ mod tests {
             piece: PieceEnum::WhitePawn,
             en_passant_target: None,
             promotion: None,
-            takes: Some((CoordinatePosition::from_str("d5").expect("valid coordinate"), PieceEnum::BlackPawn)),
-            check: Check::None,
+            takes: Some((
+                CoordinatePosition::from_str("d5").expect("valid coordinate"),
+                PieceEnum::BlackPawn,
+            )),
+            check: CheckType::None,
         };
 
         // act
@@ -112,7 +115,7 @@ mod tests {
             en_passant_target: None,
             promotion: Some(PieceEnum::WhiteQueen),
             takes: None,
-            check: Check::None,
+            check: CheckType::None,
         };
 
         // act
@@ -131,8 +134,11 @@ mod tests {
             piece: PieceEnum::BlackPawn,
             en_passant_target: None,
             promotion: Some(PieceEnum::BlackQueen),
-            takes: Some((CoordinatePosition::from_str("d1").expect("valid coordinate"), PieceEnum::WhiteQueen)),
-            check: Check::None,
+            takes: Some((
+                CoordinatePosition::from_str("d1").expect("valid coordinate"),
+                PieceEnum::WhiteQueen,
+            )),
+            check: CheckType::None,
         };
 
         // act
@@ -152,7 +158,7 @@ mod tests {
             en_passant_target: None,
             promotion: None,
             takes: None,
-            check: Check::Check,
+            check: CheckType::Check,
         };
 
         // act
@@ -172,7 +178,7 @@ mod tests {
             en_passant_target: None,
             promotion: None,
             takes: None,
-            check: Check::Checkmate,
+            check: CheckType::Checkmate,
         };
 
         // act
@@ -191,8 +197,11 @@ mod tests {
             piece: PieceEnum::BlackQueen,
             en_passant_target: None,
             promotion: None,
-            takes: Some((CoordinatePosition::from_str("d3").expect("valid coordinate"), PieceEnum::WhitePawn)),
-            check: Check::Checkmate,
+            takes: Some((
+                CoordinatePosition::from_str("d3").expect("valid coordinate"),
+                PieceEnum::WhitePawn,
+            )),
+            check: CheckType::Checkmate,
         };
 
         // act

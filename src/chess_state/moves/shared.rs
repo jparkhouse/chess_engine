@@ -8,7 +8,7 @@ use crate::chess_state::{
     moves::standard_move::StandardMove,
 };
 
-use super::chess_move::ChessMove;
+use super::chess_move::ChessDirection;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum CastleType {
@@ -17,7 +17,7 @@ pub(crate) enum CastleType {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub(crate) enum Check {
+pub(crate) enum CheckType {
     None,
     Check,
     Checkmate,
@@ -33,12 +33,18 @@ pub(crate) enum Move {
 pub(crate) enum MoveError {
     #[error("Pawn found on rank one or eight (moved backwards or failed promotion")]
     PawnOnOneOrEight,
+
     #[error("Coordinate error: {0}")]
     CoordinateError(#[from] CoordinateError),
+
     #[error("Capture piece not found at {0}")]
     CapturePieceNotFound(CoordinatePosition),
+
     #[error("Piece {0} cannot be moved diagonally")]
     PieceCannotMoveDiagonally(PieceEnum),
+
+    #[error("Invalid piece type for function {0}, expects {1} but recieved {2}")]
+    InvalidDirection(String, String, String),
 }
 
 impl BoardBitmasks {
@@ -120,34 +126,34 @@ impl BoardBitmasks {
     }
 }
 
-pub(crate) fn get_valid_space(move_type: ChessMove) -> u64 {
+pub(crate) fn get_valid_space(move_type: ChessDirection) -> u64 {
     use XCoordinate::*;
     use YCoordinate::*;
     match move_type {
-        ChessMove::Up => !(Eight as u64),
-        ChessMove::UpRight => !(Eight as u64 | H as u64),
-        ChessMove::Right => !(H as u64),
-        ChessMove::DownRight => !(One as u64 | H as u64),
-        ChessMove::Down => !(One as u64),
-        ChessMove::DownLeft => !(One as u64 | A as u64),
-        ChessMove::Left => !(A as u64),
-        ChessMove::UpLeft => !(A as u64 | Eight as u64),
+        ChessDirection::Up => !(Eight as u64),
+        ChessDirection::UpRight => !(Eight as u64 | H as u64),
+        ChessDirection::Right => !(H as u64),
+        ChessDirection::DownRight => !(One as u64 | H as u64),
+        ChessDirection::Down => !(One as u64),
+        ChessDirection::DownLeft => !(One as u64 | A as u64),
+        ChessDirection::Left => !(A as u64),
+        ChessDirection::UpLeft => !(A as u64 | Eight as u64),
         // These ones are more complicated
         // up, up, right
-        ChessMove::KnightOne => !(Seven as u64 | Eight as u64 | H as u64),
+        ChessDirection::KnightOne => !(Seven as u64 | Eight as u64 | H as u64),
         // up, right, right
-        ChessMove::KnightTwo => !(Eight as u64 | G as u64 | H as u64),
+        ChessDirection::KnightTwo => !(Eight as u64 | G as u64 | H as u64),
         // down, right, right
-        ChessMove::KnightFour => !(One as u64 | G as u64 | H as u64),
+        ChessDirection::KnightFour => !(One as u64 | G as u64 | H as u64),
         // down, down, right
-        ChessMove::KnightFive => !(One as u64 | Two as u64 | H as u64),
+        ChessDirection::KnightFive => !(One as u64 | Two as u64 | H as u64),
         // down, down, left
-        ChessMove::KnightSeven => !(One as u64 | Two as u64 | A as u64),
+        ChessDirection::KnightSeven => !(One as u64 | Two as u64 | A as u64),
         // down, left, left
-        ChessMove::KnightEight => !(One as u64 | A as u64 | B as u64),
+        ChessDirection::KnightEight => !(One as u64 | A as u64 | B as u64),
         // up, left, left
-        ChessMove::KnightTen => !(Eight as u64 | A as u64 | B as u64),
+        ChessDirection::KnightTen => !(Eight as u64 | A as u64 | B as u64),
         // up, up, left
-        ChessMove::KnightEleven => !(Seven as u64 | Eight as u64 | A as u64),
+        ChessDirection::KnightEleven => !(Seven as u64 | Eight as u64 | A as u64),
     }
 }

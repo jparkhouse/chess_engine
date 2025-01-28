@@ -82,9 +82,7 @@ impl BoardBitmasks {
         // pawns on row 8 should already be promoted
         const ROWS_TWO_TO_SIX: u64 =
             !(YCoordinate::One as u64 | YCoordinate::Seven as u64 | YCoordinate::Eight as u64);
-        let valid_pawns = self.white_pawns.mask
-            & ROWS_TWO_TO_SIX
-            & !self.get_pieces_diagonally_pinned_to_king(true);
+        let valid_pawns = self.white_pawns.mask & ROWS_TWO_TO_SIX;
         let mut valid_moves = valid_pawns.shift_move(Up) & !occupied;
 
         while valid_moves != 0 {
@@ -111,8 +109,7 @@ impl BoardBitmasks {
         // only applies to pawns on row 2
         const ROW_TWO: u64 = YCoordinate::Two as u64;
 
-        let valid_pawns =
-            self.white_pawns.mask & ROW_TWO & !self.get_pieces_diagonally_pinned_to_king(true);
+        let valid_pawns = self.white_pawns.mask & ROW_TWO;
 
         // need to ensure the pawns can step forwards once
         let valid_first_step = valid_pawns.shift_move(Up) & !occupied;
@@ -148,9 +145,7 @@ impl BoardBitmasks {
             | YCoordinate::Eight as u64
             | XCoordinate::A as u64);
 
-        let valid_pawns = self.white_pawns.mask
-            & VALID_SQUARES_NOT_IN_COLUMN_A
-            & !self.get_pieces_pinned_to_king(true);
+        let valid_pawns = self.white_pawns.mask & VALID_SQUARES_NOT_IN_COLUMN_A;
         // valid moves move UpLeft, and must capture a black piece
         let mut valid_captures = valid_pawns.shift_move(UpLeft) & self.black_pieces.mask;
 
@@ -192,9 +187,7 @@ impl BoardBitmasks {
             | YCoordinate::Eight as u64
             | XCoordinate::H as u64);
 
-        let valid_pawns = self.white_pawns.mask
-            & VALID_SQUARES_NOT_IN_COLUMN_H
-            & !self.get_pieces_pinned_to_king(true);
+        let valid_pawns = self.white_pawns.mask & VALID_SQUARES_NOT_IN_COLUMN_H;
         // valid moves move UpRight, and must capture a black piece
         let mut valid_captures = valid_pawns.shift_move(UpRight) & self.black_pieces.mask;
 
@@ -280,8 +273,7 @@ impl BoardBitmasks {
         let valid_capture_positions =
             ((target_mask.shift_move(DownLeft)) | (target_mask.shift_move(DownRight))) & ROW_SIX;
         // check if there are any pawns occupying those positions
-        let mut valid_pawns =
-            self.white_pawns.mask & valid_capture_positions & !self.get_pieces_pinned_to_king(true);
+        let mut valid_pawns = self.white_pawns.mask & valid_capture_positions;
         while valid_pawns != 0 {
             let starting_position = 1u64 << valid_pawns.trailing_zeros();
             output.push(Move::StandardMove(StandardMove {
@@ -309,7 +301,7 @@ impl BoardBitmasks {
         const ROW_SEVEN_NOT_COLUMN_A: u64 = YCoordinate::Seven as u64 & !(XCoordinate::A as u64);
         const ROW_SEVEN_NOT_COLUMN_H: u64 = YCoordinate::Seven as u64 & !(XCoordinate::H as u64);
 
-        let valid_pawns = self.white_pawns.mask & ROW_SEVEN & !self.get_pieces_pinned_to_king(true);
+        let valid_pawns = self.white_pawns.mask & ROW_SEVEN;
 
         if valid_pawns == 0 {
             return Ok(output);

@@ -10,7 +10,8 @@ use crate::chess_state::{
 };
 
 impl BoardBitmasks {
-    /// Checks for any pieces that are pinned to the king from any direction. Returns a bitmask (`u64`) of those pinned pieces.
+    /// Checks for any pieces that are geometrically pinned to the king from any direction. Returns a bitmask (`u64`) of those pinned pieces.
+    /// Bear in mind that these pinned pieces may still have valid moves like moving along the line of the pin or capturing the pinning piece.
     /// Takes only `white: bool`, which informs if we are checking for pins against the white king (`true`) or the black king (`false`).
     pub(crate) fn get_pieces_pinned_to_king(&self, white: bool) -> u64 {
         self.get_pieces_cardinally_pinned_to_king(white)
@@ -128,7 +129,7 @@ impl BoardBitmasks {
 /// Casts a ray from the `king_position`, and checks that as you progress outwards from the king in `direction`,
 /// you encounter exactly one of the `defending_pieces` and then exactly one of the `attacking_pieces`.
 /// Only valid for cardinal or diagonal directions; will throw a `MoveError::InvalidPieceType(...)` if a knight's move direction is used.
-/// If so, returns a bitmask referring to the defensive piece in the pin, else `Ok(0)`
+/// If so, returns a bitmask referring to the defensive piece in the geometric pin, else `Ok(0)`
 fn check_for_pin(
     king_position: u64,
     direction: ChessDirection,
@@ -314,6 +315,49 @@ mod tests {
             // assert
             assert!(pin.is_ok());
             assert_eq!(pin.unwrap(), expected_pin_position);
+        }
+    }
+
+    mod get_pieces_pinned_to_king {
+        use crate::chess_state::{
+            board_bitmask::BoardBitmasks,
+            coordinates::{XCoordinate, YCoordinate},
+        };
+
+        #[test]
+        fn can_detect_pinned_pieces_when_in_simple_pin() {
+            use XCoordinate::*;
+            use YCoordinate::*;
+
+            // arrange
+            // set up a simple pin - Black bishop onto pawn onto king
+            let game_board = BoardBitmasks {
+                all_pieces: ((E as u64 & Four as u64)
+                    | (F as u64 & Five as u64)
+                    | (G as u64 & Six as u64))
+                    .into(),
+                white_pieces: ((E as u64 & Four as u64) | (F as u64 & Five as u64)).into(),
+                white_pawns: (F as u64 & Five as u64).into(),
+                white_knights: 0.into(),
+                white_bishops: 0.into(),
+                white_rooks: 0.into(),
+                white_queens: 0.into(),
+                white_kings: (E as u64 & Four as u64).into(),
+                black_pieces: (G as u64 & Six as u64).into(),
+                black_pawns: 0.into(),
+                black_knights: 0.into(),
+                black_bishops: (G as u64 & Six as u64).into(),
+                black_rooks: 0.into(),
+                black_queens: 0.into(),
+                black_kings: 0.into(),
+            };
+            let expected_pin = F as u64 & Five as u64;
+
+            // act
+            let pin = game_board.get_pieces_pinned_to_king(true);
+
+            // assert
+            assert_eq!(pin, expected_pin)
         }
     }
 }

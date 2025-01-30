@@ -1,14 +1,20 @@
-use crate::chess_state::{board_bitmask::BoardBitmasks, chess_pieces::PieceEnum, coordinate_point::CoordinatePosition, moves::shared::{Move, MoveError}, moves::standard_move::StandardMove};
+use crate::chess_state::{
+    board_bitmask::BoardBitmasks,
+    chess_pieces::PieceEnum,
+    coordinate_point::CoordinatePosition,
+    moves::shared::{Move, MoveError},
+    moves::standard_move::StandardMove,
+};
 
 use super::shared::CheckType;
 
-struct TempMove {
-    moves: u64,
-    captures: u64,
+pub(crate) struct TempMove {
+    pub(crate) moves: u64,
+    pub(crate) captures: u64,
 }
 
 /// Takes TempMoves which use bitmasks of multiple successive moves
-fn unpack_moves<T: Fn(u64, usize) -> u64>(
+pub(crate) fn unpack_moves<T: Fn(u64, usize) -> u64>(
     packed_moves: Vec<TempMove>,
     undo_moves: T,
     piece_type: PieceEnum,
@@ -37,7 +43,7 @@ fn unpack_moves<T: Fn(u64, usize) -> u64>(
                 en_passant_target: None,
                 promotion: None,
                 takes,
-                check: CheckType::None
+                check: CheckType::None,
             });
 
             output.push(next_move);

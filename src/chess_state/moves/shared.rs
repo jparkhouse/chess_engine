@@ -40,10 +40,10 @@ pub(crate) enum MoveError {
     #[error("Capture piece not found at {0}")]
     CapturePieceNotFound(CoordinatePosition),
 
-    #[error("Piece {0} cannot be moved diagonally")]
-    PieceCannotMoveDiagonally(PieceEnum),
-
     #[error("Invalid piece type for function {0}, expects {1} but recieved {2}")]
+    InvalidPieceType(String, String, String),
+
+    #[error("Invalid direction for function {0}, expects {1} but recieved {2}")]
     InvalidDirection(String, String, String),
 }
 

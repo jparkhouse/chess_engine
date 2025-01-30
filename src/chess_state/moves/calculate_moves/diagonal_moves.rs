@@ -1,33 +1,83 @@
 use crate::chess_state::{
     board_bitmask::BoardBitmasks,
-    chess_pieces::PieceEnum,
-    coordinate_point::CoordinatePosition,
-    coordinates::{XCoordinate, YCoordinate},
+    chess_pieces::PieceEnum::{self, BlackBishop, BlackQueen, WhiteBishop, WhiteQueen},
     moves::{
-        shared::{CheckType, Move, MoveError},
-        standard_move::StandardMove,
+        chess_move::{
+            ChessDirection::{self, DownLeft, DownRight, UpLeft, UpRight},
+            ChessShiftMove,
+        },
+        shared::{Move, MoveError},
+        temp_move::{unpack_moves, TempMove},
     },
 };
 
 impl BoardBitmasks {
-    fn calculate_diagonal_moves_up_right(
+    /// Calculates all possible diagonal moves for a given piece type in a specified diagonal direction.
+    ///
+    /// This function determines the valid movement and capture positions for a white or black bishop
+    /// or queen along a diagonal direction. It iterates through possible moves while ensuring that
+    /// a piece does not move through its own pieces and only captures opponent pieces.
+    ///
+    /// # Arguments
+    ///
+    /// * `piece_type` - The type of the piece (must be a `WhiteBishop`, `BlackBishop`, `WhiteQueen`, or `BlackQueen`).
+    /// * `diagonal_direction` - The direction in which to calculate diagonal moves (`UpRight`, `DownRight`, `DownLeft`, or `UpLeft`).
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing:
+    /// - `Ok(Vec<Move>)` - A vector of valid moves for the piece.
+    /// - `Err(MoveError)` - An error if the piece type is invalid or the direction is not diagonal.
+    ///
+    /// # Errors
+    ///
+    /// * `MoveError::InvalidPieceType` if the provided piece type is not a valid diagonal-moving piece.
+    /// * `MoveError::InvalidDirection` if the given direction is not a valid diagonal direction.
+    ///
+    /// # Implementation Details
+    ///
+    /// * Determines whether the piece is white or black and retrieves the corresponding bitmask for its own and opponent pieces.
+    /// * Iteratively shifts the piece's bitmask along the diagonal direction while ensuring it does not overlap with its own pieces.
+    /// * Stops generating moves when encountering an occupied square (either capturing an opponent piece or reaching the board edge).
+    /// * Uses `unpack_moves` to convert bitmask-based move data into a `Vec<Move>`.
+    ///
+    /// # Example Usage
+    ///
+    /// ```rust
+    /// let moves = board.calculate_diagonal_moves_for_direction(PieceEnum::WhiteBishop, ChessDirection::UpRight)?;
+    /// ```
+
+    pub(crate) fn calculate_diagonal_moves_for_direction(
         &self,
         piece_type: PieceEnum,
+        diagonal_direction: ChessDirection,
     ) -> Result<Vec<Move>, MoveError> {
-        use PieceEnum::*;
-        // pieces from here will overflow the board
-        const NOT_COLUMN_H_OR_ROW_8: u64 = !(XCoordinate::H as u64 | YCoordinate::Eight as u64);
-
-        struct TempMove {
-            moves: u64,
-            captures: u64,
-        }
-
         // bool to reflect if it is a white piece (true) or black piece (false) and filter invalid pieces
         let white = match piece_type {
             WhiteBishop | WhiteQueen => true,
             BlackBishop | BlackQueen => false,
-            _ => return Err(MoveError::PieceCannotMoveDiagonally(piece_type)),
+            _ => {
+                return Err(MoveError::InvalidPieceType(
+                    "calculate_diagonal_moves_for_direction".into(),
+                    format!("{:?}", [WhiteBishop, WhiteQueen, BlackBishop, BlackQueen]),
+                    format!("{:?}", piece_type),
+                ))
+            }
+        };
+
+        // validate we have a valid diagonal direction and get the opposite direction for later undoing
+        let reverse_direction = match diagonal_direction {
+            UpRight => DownLeft,
+            DownRight => UpLeft,
+            DownLeft => UpRight,
+            UpLeft => DownRight,
+            _ => {
+                return Err(MoveError::InvalidDirection(
+                    "calculate_diagonal_moves_for_direction".into(),
+                    format!("{:?}", [UpRight, DownRight, DownLeft, UpLeft]),
+                    format!("{:?}", diagonal_direction),
+                ))
+            }
         };
 
         let own_pieces = match white {
@@ -44,8 +94,7 @@ impl BoardBitmasks {
 
         // check that white_bishops start from a sensible place, shift by 9 (row up, and one to right),
         // and then check they aren't on top of another white piece
-        let valid_moves =
-            ((self.piece_enum_to_bitmask(piece_type) & NOT_COLUMN_H_OR_ROW_8) << 9) & !own_pieces;
+        let valid_moves = starting_position.shift_move(diagonal_direction) & !own_pieces;
         let captures = valid_moves & opponent_pieces;
 
         let mut packed_moves = Vec::with_capacity(8);
@@ -62,7 +111,7 @@ impl BoardBitmasks {
                 // no previous moves, or all previous moves were captures (end of line)
                 break;
             }
-            let valid_moves = ((previous_move.moves & NOT_COLUMN_H_OR_ROW_8) << 9) & !own_pieces;
+            let valid_moves = (previous_move.moves.shift_move(diagonal_direction)) & !own_pieces;
             let captures = valid_moves & opponent_pieces;
             packed_moves.push(TempMove {
                 moves: valid_moves,
@@ -70,40 +119,13 @@ impl BoardBitmasks {
             });
         }
 
-        // now unpack the moves
-        let output: Vec<Move> = Vec::new();
-        for (index, packed_move) in packed_moves.iter().enumerate() {
-            // guess to limit allocations
-            let mut output: Vec<Move> = Vec::with_capacity(8);
-            // take a copy of the move u64 to deconstruct
-            let mut move_copy = packed_move.moves;
-            while move_copy > 0 {
-                let next_move_bitmask: u64 = 1 << move_copy.trailing_zeros();
-                let next_move_coord = CoordinatePosition::from_bitmask(next_move_bitmask)?;
-                let starting_pos_coord =
-                    CoordinatePosition::from_bitmask(next_move_bitmask >> (9 * (index + 1)))?;
-                let takes = match next_move_bitmask & packed_move.captures > 0 {
-                    true => Some((
-                        next_move_coord,
-                        self.get_piece_type_for_capture(next_move_coord)?,
-                    )),
-                    false => None,
-                };
-                let next_move = Move::StandardMove(StandardMove {
-                    start_position: starting_pos_coord,
-                    end_position: next_move_coord,
-                    piece: piece_type,
-                    en_passant_target: None,
-                    promotion: None,
-                    takes,
-                    check: CheckType::None
-                });
-
-                output.push(next_move);
-
-                move_copy &= !next_move_bitmask;
-            }
-        }
-        Ok(output)
+        unpack_moves(
+            packed_moves,
+            |bitmask, index| {
+                (0..index).fold(bitmask, |current, _| current.shift_move(reverse_direction))
+            },
+            piece_type,
+            &self,
+        )
     }
 }
